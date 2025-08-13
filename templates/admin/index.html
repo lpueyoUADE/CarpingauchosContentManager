@@ -1,0 +1,54 @@
+{% extends "admin/index.html" %}
+{% load static %}
+
+{% block content %}
+    <h2>ACTIONS</h2>
+        <div class="actions">
+            <!-- <a class="export-button" href="{% url 'admin:export-localization' %}">
+                Exportar JSON
+            </a> -->
+            <a class="export-button" href="{% url 'admin:download-localization' %}">
+                Descargar JSON
+            </a>
+        </div>
+    </table>
+    {{ block.super }}
+{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <style>
+        #content-related {
+            margin-top: -148px;
+        }
+        h2 {
+            background: var(--header-bg);
+            padding: 8px;
+            font-weight: normal;
+            font-size: 12px;
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+
+            gap: 10px;
+            margin: 10px;
+            padding: 25px 0;
+
+            .export-button {
+                color: white;
+                border: none;
+                padding: 15px;
+
+                background-color: green;
+                transition: 0.2s all;
+
+                &:hover {
+                    background-color: black;
+                    color: white;
+                }
+            }
+        }
+    </style>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Content Manager Admin{% endblock %}
+
+{% block branding %}
+    <img src="{% static 'admin/images/favicon.png' %}" alt="logo" width="100">
+    <h1 id="site-name"><a href="{% url 'admin:index' %}">Carpingauchos Content Manager</a></h1>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }} 
+    <link rel="icon" href="{% static 'admin/images/favicon.png' %}" type="image/png">
+{% endblock %}
+
+{% block extrastyle %}
+<style>
+    #branding {
+        align-items: center;
+    }
+</style>
+{% endblock %}
