@@ -22,11 +22,26 @@ function updateEditHref(anchor, fieldName){
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    const titleAddButton = document.querySelector('#add_id_title');
-    const briefAddButton = document.querySelector('#add_id_brief');
-    const nameAddButton = document.querySelector('#add_id_name');
-    const descriptionAddButton = document.querySelector('#add_id_description');
-    const rarityAddButton = document.querySelector('#add_id_rarity');
+    const addButtonNames = [
+        'title',
+        'brief',
+        'name',
+        'description',
+        'rarity',
+        'message',
+        'slogan',
+        'button_text',
+    ];
+
+    const addButtonsList = [];
+    
+    addButtonNames.forEach(buttonName => {
+        addButtonsList.push({
+            'name': buttonName,
+            'anchor': document.querySelector(`#add_id_${buttonName}`)
+        });
+    });
+
     const raritySelect = document.querySelector('#id_rarity');
     const itemTypeSelect = document.querySelector('#id_type');
 
@@ -36,11 +51,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const editDescriptionButton = document.querySelector('#change_id_description');
 
     function elementsToUpdate() {
-        updateHref(titleAddButton, 'title');
-        updateHref(briefAddButton, 'brief');
-        updateHref(nameAddButton, 'name');
-        updateHref(descriptionAddButton, 'description');
-        updateHref(rarityAddButton, 'rarity');
+        addButtonsList.forEach(button => {
+            updateHref(button.anchor, button.name);
+        });
 
         if (isEditingForm()) {
             updateEditHref(editNameButton, 'name');

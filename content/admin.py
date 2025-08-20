@@ -1,6 +1,8 @@
 from django import forms
 from django.contrib import admin, messages
-from django.db.models import OneToOneField, ForeignKey, CASCADE
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db import models
+from django.db.models import Q, OneToOneField, ForeignKey, CASCADE
 from django.utils.html import format_html
 from django.urls import path
 from django.http import HttpResponseRedirect, HttpResponse
@@ -21,6 +23,21 @@ from .models import (
     WeaponType, 
     DamageType,
     EquipmentType,
+    AttackSequence,
+    LoadingScreenMessage,
+    POI,
+    Projectile,
+    ProjectileType,
+    AbilityTree,
+    Ability,
+    AbilityType,
+    Condition,
+    Dialogue,
+    Basic,
+    QuestPrompt,
+    QuestEnd,
+    DialogueSequence,
+    DialogueSequenceItem,
     )
 
 from io import StringIO
@@ -60,6 +77,8 @@ class CustomAdminSite(admin.AdminSite):
             'Rarity': Rarity.to_dict(),
             'WeaponType': WeaponType.to_dict(),
             'EquipmentType': EquipmentType.to_dict(),
+            'ProjectileType': ProjectileType.to_dict(),
+            'AbilityType': AbilityType.to_dict(),
             'Localization': Localization.to_dict(),
             'Item': {
                 'Weapon': Item.to_dict(Weapon),
@@ -69,6 +88,11 @@ class CustomAdminSite(admin.AdminSite):
             },
             'Quest': Quest.to_dict(),
             'QuestObjective': QuestObjective.to_dict(),
+            'LoadingScreenMessage': LoadingScreenMessage.to_dict(),
+            'POI': POI.to_dict(),
+            'AbilityTree': AbilityTree.to_dict(),
+            'Abilities':Ability.to_dict(),
+            'Projectile': Projectile.to_dict(),
         }
 
         # Convertimos a JSON final
@@ -86,6 +110,14 @@ class CustomAdminSite(admin.AdminSite):
         
 custom_admin_site = CustomAdminSite(name='custom_admin')
 
+def _add_localization_field_filter(key_prefix, db_field, kwargs):
+    """
+    Filtro para los campos de Tipo Localization.
+    Solo muestra los locs. del mismo prefijo que el modelo a cargar.
+    """
+    if db_field.related_model == Localization:
+        # Filtramos por key que contenga cierto texto
+        kwargs["queryset"] = Localization.objects.filter(Q(key__icontains=key_prefix) & Q(key__icontains=db_field.name))
 
 class BaseModelAdmin(admin.ModelAdmin):
     key_prefix = ''
@@ -93,6 +125,12 @@ class BaseModelAdmin(admin.ModelAdmin):
     class Media:
         js = ('admin/js/auto_key.js', 'admin/js/auto_localizations.js')
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # Verificamos si el campo apunta a Localization
+        _add_localization_field_filter(self.key_prefix, db_field, kwargs)
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    
     def get_form(self, request, obj=None, **kwargs):
         """
         Seteo del prefijo para luego autogenerar los keys.
@@ -160,8 +198,48 @@ class BaseModelAdmin(admin.ModelAdmin):
                     model_count[Localization._meta.verbose_name] = model_count.get(Localization._meta.verbose_name, 0) + 1
 
         return deletions, model_count, perms_needed, protected
-    
+
+def _add_validators_to_numeric_fields(self):
+    """
+    Agrega los maximos y minimos definidos en el modelo para los campos float.
+    """
+    for field_name, field in self.fields.items():
+        model_field = self._meta.model._meta.get_field(field_name)
+        
+        if not isinstance(model_field, models.FloatField) and \
+            not isinstance(model_field, models.IntegerField) and \
+            not isinstance(model_field, models.PositiveIntegerField):
+            continue
+
+        min_val = None
+        max_val = None
+
+        for validator in model_field.validators:
+            if isinstance(validator, MinValueValidator):
+                min_val = validator.limit_value
+            elif isinstance(validator, MaxValueValidator):
+                max_val = validator.limit_value
+
+        if min_val is not None:
+            field.widget.attrs['min'] = min_val
+        if max_val is not None:
+            field.widget.attrs['max'] = max_val
+
+        # Texto de ayuda automático
+        if min_val is not None and max_val is not None:
+            field.help_text = f"Valor entre {min_val} y {max_val}"
+        elif min_val is not None:
+            field.help_text = f"Valor mínimo: {min_val}"
+        elif max_val is not None:
+            field.help_text = f"Valor máximo: {max_val}"
+
+
 class BaseModelForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        _add_validators_to_numeric_fields(self)
+
     class Meta:
         widgets = {
             'identifier': forms.TextInput(
@@ -206,19 +284,19 @@ class LocalizationAdmin(BaseModelAdmin):
 
     form = LocalizationForm
 
-    def has_add_permission(self, request):
-        can_add_localizations = (
-            'content_item_add',
-            'content_quest_add',
-            'content_rarity_add',
-            'content_localization_add',
-            'content_equipmenttype_add',
-            'content_damagetype_add',
-            'content_weapontype_add',
-            'content_npc_add',
-            'content_npc_change',
-        )
-        return request.resolver_match and request.resolver_match.url_name in can_add_localizations
+    # def has_add_permission(self, request):
+    #     can_add_localizations = (
+    #         'content_item_add',
+    #         'content_quest_add',
+    #         'content_rarity_add',
+    #         'content_localization_add',
+    #         'content_equipmenttype_add',
+    #         'content_damagetype_add',
+    #         'content_weapontype_add',
+    #         'content_npc_add',
+    #         'content_npc_change',
+    #     )
+    #     return request.resolver_match and request.resolver_match.url_name in can_add_localizations
     
 class QuestObjectiveForm(BaseModelForm):
     key_prefix = QuestObjective.prefix
@@ -240,6 +318,12 @@ class QuestObjectiveInline(admin.TabularInline):
 
     class Media:
         js = ('admin/js/auto_key_inline.js',)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # Verificamos si el campo apunta a Localization
+        _add_localization_field_filter(self.model.prefix, db_field, kwargs)
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(QuestObjective, site=custom_admin_site)
 class QuestObjectiveAdmin(BaseModelAdmin):
@@ -271,10 +355,6 @@ class QuestForm(BaseModelForm):
     class Meta:
         model = Quest
         fields = '__all__'
-        widgets = {
-            'money_reward': forms.NumberInput(attrs={'min': 0}),
-            'ability_points_reward': forms.NumberInput(attrs={'min': 0}),
-        }
 
 @admin.register(NPC, site=custom_admin_site)
 class NPCAdmin(BaseModelAdmin):
@@ -314,6 +394,11 @@ class QuestAdmin(BaseModelAdmin):
     spanish_name.short_description = "Title (ES)"
 
 class BaseItemInlineForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        _add_validators_to_numeric_fields(self)
+
     def has_changed(self):
         """ Should returns True if data differs from initial. 
         By always returning true even unchanged inlines will get validated and saved."""
@@ -323,69 +408,16 @@ class ConsumableInlineForm(BaseItemInlineForm):
     class Meta:
         model = Consumable
         fields = '__all__'
-        widgets = {
-            'cooldown': forms.NumberInput(attrs={'min': 0}),
-            'effect_Duration': forms.NumberInput(attrs={'min': 0}),
-            'physical_Resistance_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'magical_resistance_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'heal_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'mana_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'stamina_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_physical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_magical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_stamina_regen_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'nerf_physical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'nerf_magical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'extra_physical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'extra_magical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'give_flat_health': forms.NumberInput(attrs={'min': 0}),
-            'give_flat_mana': forms.NumberInput(attrs={'min': 0}),
-            'give_flat_stamina': forms.NumberInput(attrs={'min': 0}),
-        }
 
 class WeaponInlineForm(BaseItemInlineForm):
     class Meta:
         model = Weapon
         fields = '__all__'
-        widgets = {
-            'poise_break_force': forms.NumberInput(attrs={'min': 0}),
-            'flat_physical_damage': forms.NumberInput(attrs={'min': 0}),
-            'flat_magical_damage': forms.NumberInput(attrs={'min': 0}),
-            'physical_resistance_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'magical_resistance_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_health_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_mana_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_stamina_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_physical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_magical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_stamina_regen_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'nerf_physical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'nerf_magical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'extra_physical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'extra_magical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'attack_stamina_cost': forms.NumberInput(attrs={'min': 0}),
-        }
+
 class EquipmentInlineForm(BaseItemInlineForm):
     class Meta:
         model = Weapon
         fields = '__all__'
-        widgets = {
-            'flat_physical_damage': forms.NumberInput(attrs={'min': 0}),
-            'flat_magical_damage': forms.NumberInput(attrs={'min': 0}),
-            'physical_resistance_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'magical_resistance_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_health_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_mana_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_stamina_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_physical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_magical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'buff_stamina_regen_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'nerf_physical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'nerf_magical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'extra_physical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'extra_magical_damage_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
-            'stamina_cost': forms.NumberInput(attrs={'min': 0}),
-        }
 
 class QuestItemInlineForm(BaseItemInlineForm):
     class Meta:
@@ -432,10 +464,6 @@ class ItemForm(BaseModelForm):
     class Meta:
         model = Item
         fields = ('identifier', 'key', 'rarity', 'type', 'name', 'description', 'value', 'icon_path')
-        widgets = {
-            **BaseModelForm.Meta.widgets,
-            'value': forms.NumberInput(attrs={'min': 0}),
-        }
 
 @admin.register(WeaponType, site=custom_admin_site)
 class WeaponTypeAdmin(BaseModelAdmin):
@@ -479,6 +507,17 @@ class EquipmentTypeAdmin(BaseModelAdmin):
         return obj.name.spanish
     spanish_name.short_description = "ES"
 
+class AttackSequenceForm(BaseModelForm):
+    class Meta:
+        model = AttackSequence
+        fields = '__all__'
+
+@admin.register(AttackSequence, site=custom_admin_site)
+class AttackSequenceAdmin(BaseModelAdmin):
+    key_prefix = AttackSequence.prefix
+
+    form = AttackSequenceForm
+
 @admin.register(Item, site=custom_admin_site)
 class ItemAdmin(BaseModelAdmin):
     key_prefix = Item.prefix
@@ -510,7 +549,7 @@ class ItemAdmin(BaseModelAdmin):
     def rarity_name(self, obj):
         return format_html(
                 '<span style="color: {};">{}</span>',
-                obj.rarity.color,
+                obj.rarity.color_start,
                 obj.rarity.name.english 
             )
     rarity_name.short_description = "Rarity"
@@ -522,13 +561,14 @@ class RarityForm(BaseModelForm):
         fields = '__all__'
         widgets = {
             **BaseModelForm.Meta.widgets,
-            'color': forms.TextInput(attrs={'type': 'color'}),
+            'color_start': forms.TextInput(attrs={'type': 'color'}),
+            'color_end': forms.TextInput(attrs={'type': 'color'}),
         }
 
 @admin.register(Rarity, site=custom_admin_site)
 class RarityAdmin(BaseModelAdmin):
     key_prefix = Rarity.prefix
-    list_display = ('key', 'color', 'rarity_name','english_name', 'spanish_name',)
+    list_display = ('key', 'gradient_color_start', 'gradient_color_end', 'rarity_name','english_name', 'spanish_name',)
 
     ordering = ('key',)
 
@@ -570,14 +610,321 @@ class RarityAdmin(BaseModelAdmin):
         return obj.name.spanish
     spanish_name.short_description = "ES"
   
+    def gradient_color_start(self, obj):
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            obj.color_start,
+            obj.color_start
+        )
+    
+    gradient_color_start.short_description = "Color Start"
+    
+    def gradient_color_end(self, obj):
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            obj.color_end,
+            obj.color_end 
+        )
+    
+    gradient_color_end.short_description = "Color End"
+
     def rarity_name(self, obj):
         return format_html(
-                '<span style="color: {};">{}</span>',
-                obj.color,
-                obj.name.english 
-            )
+            '<span style="color: {};">{}</span>',
+            obj.color_start,
+            obj.name.english 
+        )
+
     rarity_name.short_description = "Name"
     rarity_name.admin_order_field = 'name'
+
+
+@admin.register(LoadingScreenMessage, site=custom_admin_site)
+class LoadingScreenMessageAdmin(BaseModelAdmin):
+    key_prefix = LoadingScreenMessage.prefix
+
+    list_display = ('key' ,'english_message', 'spanish_message',)
+
+    ordering = ('key',)
+
+    def english_message(self, obj):
+        return obj.message.english
+    english_message.short_description = "EN"
+
+    def spanish_message(self, obj):
+        return obj.message.spanish
+    spanish_message.short_description = "ES"
+
+@admin.register(POI, site=custom_admin_site)
+class POIAdmin(BaseModelAdmin):
+    key_prefix = POI.prefix
+
+    ordering = ('key',)
+
+    def english_name(self, obj):
+        return obj.name.english
+    english_name.short_description = "EN"
+
+    def spanish_name(self, obj):
+        return obj.name.spanish
+    spanish_name.short_description = "ES"
+
+    fieldsets = (
+        ("General", {
+            "fields": ("identifier", "key", "name", "icon_path", "show_at_start", "show_notification"),
+        }),
+        ("Min Bounds", {
+            "fields": ("min_bounds_x", "min_bounds_y"),
+            "description": "Vector2"
+        }),
+        ("Max Bounds", {
+            "fields": (("max_bounds_x", "max_bounds_y")),
+            "description": "Vector2"
+        }),
+    )
+
+
+@admin.register(ProjectileType, site=custom_admin_site)
+class ProjectileTypeAdmin(BaseModelAdmin):
+    key_prefix = ProjectileType.prefix
+    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+    ordering = ('key',)
+        
+    def english_name(self, obj):
+        return obj.name.english
+    english_name.short_description = "EN"
+
+    def spanish_name(self, obj):
+        return obj.name.spanish
+    spanish_name.short_description = "ES"
+
+class ProjectileForm(BaseModelForm):
+    class Meta:
+        model = Projectile
+        fields = '__all__'
+
+@admin.register(Projectile, site=custom_admin_site)
+class ProjectileAdmin(BaseModelAdmin):
+    key_prefix = Projectile.prefix
+    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+
+    ordering = ('key',)
+
+    form = ProjectileForm
+
+    def english_name(self, obj):
+        return obj.name.english
+    english_name.short_description = "EN"
+
+    def spanish_name(self, obj):
+        return obj.name.spanish
+    spanish_name.short_description = "ES"
+
+class AbilityTreeForm(BaseModelForm):
+    class Meta:
+        model = AbilityTree
+        fields = '__all__'
+
+@admin.register(AbilityTree, site=custom_admin_site)
+class AbilityTreeAdmin(BaseModelAdmin):
+    key_prefix = AbilityTree.prefix
+    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+
+    ordering = ('key',)
+
+    form = AbilityTreeForm
+
+    def english_name(self, obj):
+        return obj.name.english
+    english_name.short_description = "EN"
+
+    def spanish_name(self, obj):
+        return obj.name.spanish
+    spanish_name.short_description = "ES"
+
+@admin.register(AbilityType, site=custom_admin_site)
+class AbilityTypeAdmin(BaseModelAdmin):
+    key_prefix = AbilityType.prefix
+    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+    ordering = ('key',)
+        
+    def english_name(self, obj):
+        return obj.name.english
+    english_name.short_description = "EN"
+
+    def spanish_name(self, obj):
+        return obj.name.spanish
+    spanish_name.short_description = "ES"
+
+class AbilityForm(BaseModelForm):
+    class Meta:
+        model = Ability
+        fields = '__all__'
+
+@admin.register(Ability, site=custom_admin_site)
+class AbilityAdmin(BaseModelAdmin):
+    key_prefix = Ability.prefix
+    list_display = ('identifier', 'key', 'ability_tree_name', 'english_name', 'spanish_name',)
+
+    ordering = ('key',)
+
+    form = AbilityForm
+
+    def ability_tree_name(self, obj):
+        return obj.ability_tree.identifier
+    ability_tree_name.short_description = "Ability Tree Name"
+
+    def english_name(self, obj):
+        return obj.name.english
+    english_name.short_description = "EN"
+
+    def spanish_name(self, obj):
+        return obj.name.spanish
+    spanish_name.short_description = "ES"
+
+class ConditionForm(BaseModelForm):
+    class Meta:
+        model = Condition
+        fields = '__all__'
+
+@admin.register(Condition, site=custom_admin_site)
+class ConditionAdmin(BaseModelAdmin):
+    key_prefix = Condition.prefix
+    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+
+    ordering = ('key',)
+
+    form = ConditionForm
+
+    def english_name(self, obj):
+        return obj.name.english
+    english_name.short_description = "EN"
+
+    def spanish_name(self, obj):
+        return obj.name.spanish
+    spanish_name.short_description = "ES"
+
+class BasicDialogueInlineForm(BaseItemInlineForm):
+    class Meta:
+        model = Basic
+        fields = '__all__'
+
+class BasicDialogueInline(admin.StackedInline):
+    model = Basic
+    extra = 1
+    min_num = 0
+    max_num = 1
+    can_delete = False
+
+    form = BasicDialogueInlineForm
+
+class QuestPromptDialogueInlineForm(BaseItemInlineForm):
+    class Meta:
+        model = QuestPrompt
+        fields = '__all__'
+
+class QuestPromptDialogueInline(admin.StackedInline):
+    model = QuestPrompt
+    extra = 1
+    min_num = 0
+    max_num = 1
+    can_delete = False
+
+    form = QuestPromptDialogueInlineForm
+
+class QuestEndDialogueInlineForm(BaseItemInlineForm):
+    class Meta:
+        model = QuestEnd
+        fields = '__all__'
+
+class QuestEndDialogueInline(admin.StackedInline):
+    model = QuestEnd
+    extra = 1
+    min_num = 0
+    max_num = 1
+    can_delete = False
+
+    form = QuestEndDialogueInlineForm
+
+class DialogueForm(BaseModelForm):
+    class Meta:
+        model = Dialogue
+        fields = '__all__'
+
+class DialogueForm(BaseModelForm):
+    class Meta:
+        model = Dialogue
+        fields = '__all__'
+
+@admin.register(Dialogue, site=custom_admin_site)
+class DialogueAdmin(BaseModelAdmin):
+    key_prefix = Dialogue.prefix
+    # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+
+    ordering = ('key',)
+
+    inlines = [
+        BasicDialogueInline, QuestPromptDialogueInline, QuestEndDialogueInline
+    ]
+
+    form = DialogueForm
+
+    class Media:
+        js = (
+            'admin/js/dialogue_auto_key.js',
+            'admin/js/dialogue_type_toggle.js',
+        )
+
+    def english_name(self, obj):
+        return obj.name.english
+    english_name.short_description = "EN"
+
+    def spanish_name(self, obj):
+        return obj.name.spanish
+    spanish_name.short_description = "ES"
+
+class DialogueSequenceItemInline(admin.TabularInline):
+    model = DialogueSequenceItem
+    extra = 1
+
+class DialogueSequenceForm(BaseModelForm):
+    class Meta:
+        model = DialogueSequence
+        fields = '__all__'
+
+    
+
+@admin.register(DialogueSequence, site=custom_admin_site)
+class DialogueSequenceAdmin(BaseModelAdmin):
+    key_prefix = DialogueSequence.prefix
+    # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+
+    ordering = ('key',)
+    inlines = [DialogueSequenceItemInline]
+    form = DialogueSequenceForm
+
+
+class DialogueSequenceItemForm(BaseModelForm):
+    class Meta:
+        model = DialogueSequenceItem
+        fields = '__all__'
+
+@admin.register(DialogueSequenceItem, site=custom_admin_site)
+class DialogueSequenceItemAdmin(BaseModelAdmin):
+    key_prefix = DialogueSequenceItem.prefix
+    # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+
+    ordering = ('key',)
+
+    form = DialogueSequenceItemForm
+
+    # def english_name(self, obj):
+    #     return obj.name.english
+    # english_name.short_description = "EN"
+
+    # def spanish_name(self, obj):
+    #     return obj.name.spanish
+    # spanish_name.short_description = "ES"
 
 # Agregar para ver si los items y los subtipos se están creando bien.
 # @admin.register(Weapon, site=custom_admin_site)

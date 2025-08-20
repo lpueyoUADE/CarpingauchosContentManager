@@ -5,7 +5,8 @@ rarities = [
     {
         'identifier': 'Common',
         'key': 'rarity_common',
-        'color': '#FFFFFF',
+        'color_start': '#FFFFFF',
+        'color_end': '#FFFFFF',
         'localization_identifier': 'rarity_common_name',
         'localization_key': 'loc_rarity_common_name',
         'localization_english': 'Common',
@@ -14,7 +15,8 @@ rarities = [
     {
         'identifier': 'Uncommon',
         'key': 'rarity_uncommon',
-        'color': '#33FF44',
+        'color_start': '#33FF44',
+        'color_end': '#33FF44',
         'localization_identifier': 'rarity_uncommon_name',
         'localization_key': 'loc_rarity_uncommon_name',
         'localization_english': 'Uncommon',
@@ -23,7 +25,8 @@ rarities = [
     {
         'identifier': 'Rare',
         'key': 'rarity_rare',
-        'color': '#3399FF',
+        'color_start': '#3399FF',
+        'color_end': '#3399FF',
         'localization_identifier': 'rarity_rare_name',
         'localization_key': 'loc_rarity_rare_name',
         'localization_english': 'Rare',
@@ -32,7 +35,8 @@ rarities = [
     {
         'identifier': 'Epic',
         'key': 'rarity_epic',
-        'color': '#9933FF',
+        'color_start': '#9933FF',
+        'color_end': '#9933FF',
         'localization_identifier': 'rarity_epic_name',
         'localization_key': 'loc_rarity_epic_name',
         'localization_english': 'Epic',
@@ -41,7 +45,8 @@ rarities = [
     {
         'identifier': 'Legendary',
         'key': 'rarity_legendary',
-        'color': '#FFAA00',
+        'color_start': '#FFAA00',
+        'color_end': '#FFAA00',
         'localization_identifier': 'rarity_legendary_name',
         'localization_key': 'loc_rarity_legendary_name',
         'localization_english': 'Legendary',
@@ -151,6 +156,41 @@ equipment_types = [
     },
 ]
 
+ability_types = [
+    {
+        'identifier': 'None',
+        'key': 'abilitytype_none',
+        'localization_identifier': 'abilitytype_none_name',
+        'localization_key': 'loc_abilitytype_none_name',
+        'localization_english': 'None',
+        'localization_spanish': 'Nulo',
+    },
+    {
+        'identifier': 'Active',
+        'key': 'abilitytype_active',
+        'localization_identifier': 'abilitytype_active_name',
+        'localization_key': 'loc_abilitytype_active_name',
+        'localization_english': 'Active',
+        'localization_spanish': 'Activo',
+    },
+    {
+        'identifier': 'Passive',
+        'key': 'abilitytype_passive',
+        'localization_identifier': 'abilitytype_passive_name',
+        'localization_key': 'loc_abilitytype_passive_name',
+        'localization_english': 'Passive',
+        'localization_spanish': 'Pasivo',
+    },
+    {
+        'identifier': 'Transformation',
+        'key': 'abilitytype_transformation',
+        'localization_identifier': 'abilitytype_transformation_name',
+        'localization_key': 'loc_abilitytype_transformation_name',
+        'localization_english': 'Transformation',
+        'localization_spanish': 'Transformacion',
+    },
+]
+
 def localization_forwards(apps, schema_editor):
     Localization = apps.get_model('content', 'Localization')
 
@@ -190,6 +230,15 @@ def localization_forwards(apps, schema_editor):
             spanish=et['localization_spanish']
         )
 
+    # ability_type
+    for at in ability_types:
+        Localization.objects.create(
+            identifier=at['localization_identifier'],
+            key=at['localization_key'],
+            english=at['localization_english'],
+            spanish=at['localization_spanish']
+        )
+
 def localization_reverse(apps, schema_editor):
     Localization = apps.get_model('content', 'Localization')
     Localization.objects.all().delete()
@@ -202,7 +251,8 @@ def rarity_forwards(apps, schema_editor):
         Rarity.objects.create(
             identifier=r['identifier'],
             key=r['key'],
-            color=r['color'],
+            color_start=r['color_start'],
+            color_end=r['color_end'],
             name=Localization.objects.get(key=r['localization_key']),
         )
 
@@ -254,8 +304,28 @@ def equipment_type_forwards(apps, schema_editor):
 
 def equipment_type_reverse(apps, schema_editor):    
     EquipmentType = apps.get_model('content', 'EquipmentType')
+    Item = apps.get_model('content', 'Item')
+    Item.objects.all().delete()
+    
     EquipmentType.objects.all().delete()
 
+def ability_type_forwards(apps, schema_editor):
+    AbilityType = apps.get_model('content', 'AbilityType')
+    Localization = apps.get_model('content', 'Localization')
+
+    for et in ability_types:
+        AbilityType.objects.create(
+            identifier=et['identifier'],
+            key=et['key'],
+            name=Localization.objects.get(key=et['localization_key']),
+        )
+
+def ability_type_reverse(apps, schema_editor):    
+    AbilityType = apps.get_model('content', 'AbilityType')   
+    Ability = apps.get_model('content', 'Ability') 
+    
+    Ability.objects.all().delete()
+    AbilityType.objects.all().delete()
 
 class Migration(migrations.Migration):
 
@@ -269,4 +339,5 @@ class Migration(migrations.Migration):
         migrations.RunPython(weapon_type_forwards, weapon_type_reverse),
         migrations.RunPython(damage_type_forwards, damage_type_reverse),
         migrations.RunPython(equipment_type_forwards, equipment_type_reverse),
+        migrations.RunPython(ability_type_forwards, ability_type_reverse),
     ]
