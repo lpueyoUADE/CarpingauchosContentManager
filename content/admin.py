@@ -91,8 +91,10 @@ class CustomAdminSite(admin.AdminSite):
             'LoadingScreenMessage': LoadingScreenMessage.to_dict(),
             'POI': POI.to_dict(),
             'AbilityTree': AbilityTree.to_dict(),
-            'Abilities':Ability.to_dict(),
+            'Ability':Ability.to_dict(),
             'Projectile': Projectile.to_dict(),
+            'Dialogue': Dialogue.to_dict(),
+            'Condition':Condition.to_dict(),
         }
 
         # Convertimos a JSON final
@@ -317,7 +319,7 @@ class QuestObjectiveInline(admin.TabularInline):
     extra = 1  # cuántos formularios vacíos mostrar para crear nuevos objetivos
 
     class Media:
-        js = ('admin/js/auto_key_inline.js',)
+        js = ('admin/js/auto_key_inline.js', 'admin/js/tabularinline_questobjectives_index_autoincrement.js',)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         # Verificamos si el campo apunta a Localization
@@ -426,7 +428,7 @@ class QuestItemInlineForm(BaseItemInlineForm):
 
 class ConsumableInline(admin.StackedInline):
     model = Consumable
-    extra = 1
+    extra = 0
     min_num = 0
     max_num = 1
     can_delete = False
@@ -435,7 +437,7 @@ class ConsumableInline(admin.StackedInline):
 
 class WeaponInline(admin.StackedInline):
     model = Weapon
-    extra = 1
+    extra = 0
     min_num = 0
     max_num = 1
     can_delete = False
@@ -444,7 +446,7 @@ class WeaponInline(admin.StackedInline):
 
 class EquipmentInline(admin.StackedInline):
     model = Equipment
-    extra = 1
+    extra = 0
     min_num = 0
     max_num = 1
     can_delete = False
@@ -453,7 +455,7 @@ class EquipmentInline(admin.StackedInline):
 
 class QuestItemInline(admin.StackedInline):
     model = QuestItem
-    extra = 1
+    extra = 0
     min_num = 0
     max_num = 1
     can_delete = False
@@ -790,19 +792,20 @@ class ConditionForm(BaseModelForm):
 @admin.register(Condition, site=custom_admin_site)
 class ConditionAdmin(BaseModelAdmin):
     key_prefix = Condition.prefix
-    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+    #TODO: limpiar campos y comentarios sobrantes
+    # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
 
     ordering = ('key',)
 
     form = ConditionForm
 
-    def english_name(self, obj):
-        return obj.name.english
-    english_name.short_description = "EN"
+    # def english_name(self, obj):
+    #     return obj.name.english
+    # english_name.short_description = "EN"
 
-    def spanish_name(self, obj):
-        return obj.name.spanish
-    spanish_name.short_description = "ES"
+    # def spanish_name(self, obj):
+    #     return obj.name.spanish
+    # spanish_name.short_description = "ES"
 
 class BasicDialogueInlineForm(BaseItemInlineForm):
     class Meta:
@@ -811,7 +814,7 @@ class BasicDialogueInlineForm(BaseItemInlineForm):
 
 class BasicDialogueInline(admin.StackedInline):
     model = Basic
-    extra = 1
+    extra = 0
     min_num = 0
     max_num = 1
     can_delete = False
@@ -825,7 +828,7 @@ class QuestPromptDialogueInlineForm(BaseItemInlineForm):
 
 class QuestPromptDialogueInline(admin.StackedInline):
     model = QuestPrompt
-    extra = 1
+    extra = 0
     min_num = 0
     max_num = 1
     can_delete = False
@@ -839,7 +842,7 @@ class QuestEndDialogueInlineForm(BaseItemInlineForm):
 
 class QuestEndDialogueInline(admin.StackedInline):
     model = QuestEnd
-    extra = 1
+    extra = 0
     min_num = 0
     max_num = 1
     can_delete = False
@@ -875,6 +878,11 @@ class DialogueAdmin(BaseModelAdmin):
             'admin/js/dialogue_type_toggle.js',
         )
 
+    def get_readonly_fields(self, request, obj=None):
+        if obj:  # si ya existe, es edición
+            return ['type']
+        return []
+
     def english_name(self, obj):
         return obj.name.english
     english_name.short_description = "EN"
@@ -883,16 +891,37 @@ class DialogueAdmin(BaseModelAdmin):
         return obj.name.spanish
     spanish_name.short_description = "ES"
 
+class DialogueSequenceItemForm(BaseModelForm):
+    key_prefix = DialogueSequenceItem.prefix
+    
+    class Meta:
+        model = DialogueSequenceItem
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Autocompletado de la key
+        self.fields['key'].widget.attrs['readonly'] = True
+        self.fields['identifier'].widget.attrs['data-key-prefix'] = self.key_prefix
+
 class DialogueSequenceItemInline(admin.TabularInline):
     model = DialogueSequenceItem
+    form = DialogueSequenceItemForm
     extra = 1
+
+    class Media:
+        js = ('admin/js/dialogue_item_auto_key_inline.js', 'admin/js/tabularinline_items_index_autoincrement.js',)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # Verificamos si el campo apunta a Localization
+        _add_localization_field_filter(self.model.prefix, db_field, kwargs)
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 class DialogueSequenceForm(BaseModelForm):
     class Meta:
         model = DialogueSequence
         fields = '__all__'
-
-    
 
 @admin.register(DialogueSequence, site=custom_admin_site)
 class DialogueSequenceAdmin(BaseModelAdmin):
@@ -902,12 +931,6 @@ class DialogueSequenceAdmin(BaseModelAdmin):
     ordering = ('key',)
     inlines = [DialogueSequenceItemInline]
     form = DialogueSequenceForm
-
-
-class DialogueSequenceItemForm(BaseModelForm):
-    class Meta:
-        model = DialogueSequenceItem
-        fields = '__all__'
 
 @admin.register(DialogueSequenceItem, site=custom_admin_site)
 class DialogueSequenceItemAdmin(BaseModelAdmin):

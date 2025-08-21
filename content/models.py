@@ -111,11 +111,7 @@ class Localization(BaseModel):
 
 class NPC(BaseModel):
     prefix = 'npc_'
-
     name = LocalizedField(related_name='npc_name', on_delete=models.CASCADE)
-    #TODO: asociar Dialogos
-    # dialogues = None
-    # first_talk_dialogues = None
 
 class Quest(BaseModel):
     prefix = 'quest_'
@@ -325,7 +321,7 @@ class Weapon(ItemSubtype):
     weapon_type = models.ForeignKey(WeaponType, related_name='weapon_type', on_delete=models.PROTECT) 
     damage_type = models.ForeignKey(DamageType, related_name='damage_type', on_delete=models.PROTECT)
 
-    attack_sequence = models.ManyToManyField(AttackSequence, related_name='weapons',null=True, blank=True)
+    attack_sequence = models.ManyToManyField(AttackSequence, related_name='weapons', blank=True)
 
     #TODO: implementar Lectura de archivos para seleccionar iconos y prefabs
     prefab = models.TextField(null=True, blank=True, default="")
@@ -625,6 +621,15 @@ class Dialogue(BaseModel):
 
     type = models.CharField(max_length=20, null=False, blank=False, choices=DialogueTypes.choices)
 
+    #TODO: Implementar to dict de Dialogue
+    @classmethod
+    def extra_process(cls, dialogue_element, data):
+        pass
+    
+    @classmethod
+    def to_dict(cls):
+        return super().to_dict(None, [Dialogue.button_text], cls.extra_process)
+
 class DialogueSubtype(models.Model):
     type = None
     dialogue = models.OneToOneField(Dialogue, on_delete=models.CASCADE, related_name="dialogue_subtype")
@@ -656,7 +661,7 @@ class DialogueSubtype(models.Model):
 
 
 class DialogueSequenceItem(BaseModel):
-    prefix = 'Dialoguesequenceitem_'
+    prefix = 'dialoguesequenceitem_'
     text = LocalizedField(related_name='dialogue_sequence_item_text', on_delete=models.CASCADE)
     speaker = models.BooleanField(default=True)
     index = models.PositiveIntegerField(default=1, help_text='Orden del diálogo', validators=[MinValueValidator(1), MaxValueValidator(1000)])
