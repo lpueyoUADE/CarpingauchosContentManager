@@ -25,7 +25,7 @@ class LocalizedField(models.OneToOneField):
 class BaseModel(models.Model):
     prefix = ''
 
-    identifier =  models.CharField(max_length=150, unique=True, null=False, blank=False, help_text="Texto identificador del recurso.")
+    identifier =  models.CharField(max_length=150, null=False, blank=False, help_text="Texto identificador del recurso.")
     key = models.SlugField(max_length=150, unique=True, null=False, blank=False, help_text="Texto autogenerado.")
 
     class Meta:
@@ -112,6 +112,27 @@ class Localization(BaseModel):
 class NPC(BaseModel):
     prefix = 'npc_'
     name = LocalizedField(related_name='npc_name', on_delete=models.CASCADE)
+    
+    @classmethod
+    def extra_process(cls, npc_element, data):
+        first_talk_dialogues = []
+        dialogues = []
+
+        for dialogue in npc_element.dialogues.all():
+            if dialogue.type == DialogueTypes.BASIC and dialogue.basic_dialogue.is_first_talk:
+                first_talk_dialogues.append(dialogue.key)
+
+            else:
+                dialogues.append(dialogue.key)
+
+        data['first_talk_dialogue_keys'] = first_talk_dialogues
+        data['dialogue_keys'] = dialogues
+        
+    @classmethod
+    def to_dict(cls):
+        return super().to_dict(None, [NPC.name], cls.extra_process)
+
+
 
 class Quest(BaseModel):
     prefix = 'quest_'
@@ -412,7 +433,7 @@ class POI(BaseModel):
     show_at_start = models.BooleanField(default=False)
     show_notification = models.BooleanField(default=True)
 
-    #TODO: agregar 
+    #TODO: agregar triggers a POI
     # on_first_enter_triggered_id
     # on_first_enter_triggered_diary_entries
 
@@ -604,6 +625,18 @@ class DialogueTypes(models.TextChoices):
     QUEST_PROMPT = 'quest_prompt', 'Quest Prompt'
     QUEST_END = 'quest_end', 'Quest End'
 
+
+def get_item_amount(items_queryset):
+    item_list = []
+
+    for item in items_queryset:
+        item_list.append({
+            'key': item.item.key,
+            'amount': item.amount
+        })
+
+    return item_list
+
 class Dialogue(BaseModel):
     prefix = 'dialogue_'
 
@@ -621,14 +654,30 @@ class Dialogue(BaseModel):
 
     type = models.CharField(max_length=20, null=False, blank=False, choices=DialogueTypes.choices)
 
-    #TODO: Implementar to dict de Dialogue
     @classmethod
-    def extra_process(cls, dialogue_element, data):
-        pass
+    def process_subtype(cls, subtype, dialogue_element, data):
+        data['npc'] = dialogue_element.npc.key
+
+        data["appear_conditions"] = [ac.key for ac in dialogue_element.appear_conditions.all()]
+        data["no_appear_conditions"] = [nac.key for nac in dialogue_element.no_appear_conditions.all()]
+        data["trigger_conditions"] = [tc.key for tc in dialogue_element.trigger_conditions.all()]
+
+        data["required_items"] = get_item_amount(dialogue_element.dialogitemsrequired_set.select_related('item'))
+        data["remove_items"] = get_item_amount(dialogue_element.dialogitemstoremove_set.select_related('item'))
+        data["give_items"] = get_item_amount(dialogue_element.dialogitemstogive_set.select_related('item'))
+
+        # Obtengo el subtype asociado al item
+        reverse_name = subtype.dialogue.field.related_query_name()
+
+        # Convierto el subtype a dict
+        element_data = getattr(dialogue_element, reverse_name).to_dict()
+
+        data.update(element_data)
     
     @classmethod
-    def to_dict(cls):
-        return super().to_dict(None, [Dialogue.button_text], cls.extra_process)
+    def to_dict(cls, subtype):
+        extra_process_by_subtype = lambda element, data: cls.process_subtype(subtype, element, data)
+        return super().to_dict(None, [Dialogue.button_text], extra_process_by_subtype, type=subtype.type)
 
 class DialogueSubtype(models.Model):
     type = None
@@ -663,10 +712,28 @@ class DialogueSubtype(models.Model):
 class DialogueSequenceItem(BaseModel):
     prefix = 'dialoguesequenceitem_'
     text = LocalizedField(related_name='dialogue_sequence_item_text', on_delete=models.CASCADE)
-    speaker = models.BooleanField(default=True)
+    speaker = models.BooleanField(default=True, help_text="False es NPC, True es Player.")
     index = models.PositiveIntegerField(default=1, help_text='Orden del diálogo', validators=[MinValueValidator(1), MaxValueValidator(1000)])
 
     sequence = models.ForeignKey('DialogueSequence', related_name='items', on_delete=models.CASCADE)
+
+    def to_dict(self):
+        fields = {}
+
+        data = model_to_dict(self)
+
+        # En Unity no usamos ids sino las keys de los items.
+        data.pop('id')
+
+        # No necesito la referencia al sequence.
+        data.pop('sequence')
+
+        field_name = DialogueSequenceItem.text.field.name
+        data[field_name] = getattr(self, field_name).key
+
+        fields.update(data)
+
+        return fields
 
 #TODO: Revisar si se puede omitir o hacer automatico este modelo
 class DialogueSequence(BaseModel):
@@ -676,7 +743,17 @@ class Basic(DialogueSubtype):
     type = DialogueTypes.BASIC
     dialogue = models.OneToOneField(Dialogue, on_delete=models.CASCADE, related_name="basic_dialogue")
 
+    is_first_talk = models.BooleanField(default=False)
+    is_one_shot = models.BooleanField(default=False) 
     sequence = models.OneToOneField(DialogueSequence, related_name='basic_dialogue_sequence', on_delete=models.CASCADE)
+
+    def to_dict(self):
+        fields = super().to_dict()
+
+        fields['sequence'] = [sequence_item.to_dict() for sequence_item in self.sequence.items.all()]
+        print(fields['sequence'])
+        fields['sequence'].sort(key=lambda item: item['index'])
+        return fields
 
 class QuestPrompt(DialogueSubtype):
     type = DialogueTypes.QUEST_PROMPT
@@ -692,6 +769,11 @@ class QuestEnd(DialogueSubtype):
 
     sequence = models.OneToOneField(DialogueSequence, related_name='quest_end_dialogue_sequence', on_delete=models.CASCADE)
 
+    def to_dict(self):
+        fields = super().to_dict()
+        fields['sequence'] = [sequence_item.to_dict() for sequence_item in self.sequence.items.all()]
+        fields['sequence'].sort(key=lambda item: item['index'])
+        return fields
 
 #TODO: implementar todos los modelos.
 """

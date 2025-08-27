@@ -38,6 +38,9 @@ from .models import (
     QuestEnd,
     DialogueSequence,
     DialogueSequenceItem,
+    DialogItemsRequired,
+    DialogItemsToRemove,
+    DialogItemsToGive,
     )
 
 from io import StringIO
@@ -93,7 +96,12 @@ class CustomAdminSite(admin.AdminSite):
             'AbilityTree': AbilityTree.to_dict(),
             'Ability':Ability.to_dict(),
             'Projectile': Projectile.to_dict(),
-            'Dialogue': Dialogue.to_dict(),
+            'NPC': NPC.to_dict(),
+            'Dialogue': 
+                Dialogue.to_dict(Basic) +
+                Dialogue.to_dict(QuestPrompt) +
+                Dialogue.to_dict(QuestEnd)
+            ,
             'Condition':Condition.to_dict(),
         }
 
@@ -242,6 +250,10 @@ class BaseModelForm(forms.ModelForm):
 
         _add_validators_to_numeric_fields(self)
 
+        # Autocompletado de la key
+        self.fields['key'].widget.attrs['readonly'] = True
+        self.fields['identifier'].widget.attrs['data-key-prefix'] = self._meta.model.prefix
+
     class Meta:
         widgets = {
             'identifier': forms.TextInput(
@@ -306,11 +318,6 @@ class QuestObjectiveForm(BaseModelForm):
     class Meta:
         model = QuestObjective
         fields = '__all__'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['key'].widget.attrs['readonly'] = True
-        self.fields['identifier'].widget.attrs['data-key-prefix'] = self.key_prefix
 
 class QuestObjectiveInline(admin.TabularInline):
     model = QuestObjective
@@ -791,7 +798,6 @@ class ConditionForm(BaseModelForm):
 
 @admin.register(Condition, site=custom_admin_site)
 class ConditionAdmin(BaseModelAdmin):
-    key_prefix = Condition.prefix
     #TODO: limpiar campos y comentarios sobrantes
     # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
 
@@ -849,6 +855,18 @@ class QuestEndDialogueInline(admin.StackedInline):
 
     form = QuestEndDialogueInlineForm
 
+class RequiredItemsDialogueInline(admin.TabularInline):
+    model = DialogItemsRequired
+    extra = 0
+
+class RemoveItemsDialogueInline(admin.TabularInline):
+    model = DialogItemsToRemove
+    extra = 0
+
+class GiveItemsDialogueInline(admin.TabularInline):
+    model = DialogItemsToGive
+    extra = 0
+    
 class DialogueForm(BaseModelForm):
     class Meta:
         model = Dialogue
@@ -867,7 +885,12 @@ class DialogueAdmin(BaseModelAdmin):
     ordering = ('key',)
 
     inlines = [
-        BasicDialogueInline, QuestPromptDialogueInline, QuestEndDialogueInline
+        BasicDialogueInline, 
+        QuestPromptDialogueInline, 
+        QuestEndDialogueInline, 
+        RequiredItemsDialogueInline,
+        RemoveItemsDialogueInline,
+        GiveItemsDialogueInline,
     ]
 
     form = DialogueForm
@@ -897,12 +920,6 @@ class DialogueSequenceItemForm(BaseModelForm):
     class Meta:
         model = DialogueSequenceItem
         fields = '__all__'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Autocompletado de la key
-        self.fields['key'].widget.attrs['readonly'] = True
-        self.fields['identifier'].widget.attrs['data-key-prefix'] = self.key_prefix
 
 class DialogueSequenceItemInline(admin.TabularInline):
     model = DialogueSequenceItem
