@@ -16,7 +16,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from content.admin import custom_admin_site
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', custom_admin_site.urls),
-]
+] + static('/static_sprites/', document_root=settings.SPRITES_BASE_PATH) + \
+    static('/static_prefabs/', document_root=settings.PREFABS_BASE_PATH)

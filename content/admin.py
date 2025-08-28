@@ -8,8 +8,9 @@ from django.urls import path
 from django.http import HttpResponseRedirect, HttpResponse
 from django.core.serializers import serialize
 from django.conf import settings
+from .widgets import get_sprite_choices, get_prefab_choices, SpriteGridWidget, PrefabGridWidget
 from .models import (
-    Localization, 
+    Localization,
     NPC,
     Quest, 
     QuestObjective,
@@ -133,7 +134,7 @@ class BaseModelAdmin(admin.ModelAdmin):
     key_prefix = ''
 
     class Media:
-        js = ('admin/js/auto_key.js', 'admin/js/auto_localizations.js')
+        js = ('admin/js/auto_key.js', 'admin/js/auto_localizations.js', 'admin/js/file_grid.js')
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         # Verificamos si el campo apunta a Localization
@@ -254,6 +255,32 @@ class BaseModelForm(forms.ModelForm):
         self.fields['key'].widget.attrs['readonly'] = True
         self.fields['identifier'].widget.attrs['data-key-prefix'] = self._meta.model.prefix
 
+        # Para usar SpriteGridWidget en cualquier modelo que tenga un campo 'icon_path'
+        if 'icon_path' in self.fields:
+            self.fields['icon_path'] = forms.ChoiceField(
+                choices=get_sprite_choices(),
+                widget=SpriteGridWidget()
+            )
+
+        if 'locked_icon_path' in self.fields:
+            self.fields['locked_icon_path'] = forms.ChoiceField(
+                choices=get_sprite_choices(),
+                widget=SpriteGridWidget()
+            )
+
+        if 'unlocked_icon_path' in self.fields:
+            self.fields['unlocked_icon_path'] = forms.ChoiceField(
+                choices=get_sprite_choices(),
+                widget=SpriteGridWidget()
+            )
+
+        # Para usar PrefabGridWidget en cualquier modelo que tenga un campo 'prefab'
+        if 'prefab' in self.fields:
+            self.fields['prefab'] = forms.ChoiceField(
+                choices=get_prefab_choices(),
+                widget=PrefabGridWidget()
+            )
+
     class Meta:
         widgets = {
             'identifier': forms.TextInput(
@@ -298,20 +325,6 @@ class LocalizationAdmin(BaseModelAdmin):
 
     form = LocalizationForm
 
-    # def has_add_permission(self, request):
-    #     can_add_localizations = (
-    #         'content_item_add',
-    #         'content_quest_add',
-    #         'content_rarity_add',
-    #         'content_localization_add',
-    #         'content_equipmenttype_add',
-    #         'content_damagetype_add',
-    #         'content_weapontype_add',
-    #         'content_npc_add',
-    #         'content_npc_change',
-    #     )
-    #     return request.resolver_match and request.resolver_match.url_name in can_add_localizations
-    
 class QuestObjectiveForm(BaseModelForm):
     key_prefix = QuestObjective.prefix
 
@@ -407,6 +420,20 @@ class BaseItemInlineForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         _add_validators_to_numeric_fields(self)
+
+        # Para usar SpriteGridWidget en cualquier modelo que tenga un campo 'icon_path'
+        if 'icon_path' in self.fields:
+            self.fields['icon_path'] = forms.ChoiceField(
+                choices=get_sprite_choices(),
+                widget=SpriteGridWidget()
+            )
+
+        # Para usar PrefabGridWidget en cualquier modelo que tenga un campo 'prefab'
+        if 'prefab' in self.fields:
+            self.fields['prefab'] = forms.ChoiceField(
+                choices=get_prefab_choices(),
+                widget=PrefabGridWidget()
+            )
 
     def has_changed(self):
         """ Should returns True if data differs from initial. 
@@ -664,11 +691,18 @@ class LoadingScreenMessageAdmin(BaseModelAdmin):
         return obj.message.spanish
     spanish_message.short_description = "ES"
 
+class POIForm(BaseModelForm):
+    class Meta:
+        model = Item
+        fields = '__all__'
+
 @admin.register(POI, site=custom_admin_site)
 class POIAdmin(BaseModelAdmin):
     key_prefix = POI.prefix
 
     ordering = ('key',)
+
+    form = POIForm
 
     def english_name(self, obj):
         return obj.name.english
@@ -715,19 +749,11 @@ class ProjectileForm(BaseModelForm):
 @admin.register(Projectile, site=custom_admin_site)
 class ProjectileAdmin(BaseModelAdmin):
     key_prefix = Projectile.prefix
-    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+    list_display = ('identifier', 'key')
 
     ordering = ('key',)
 
     form = ProjectileForm
-
-    def english_name(self, obj):
-        return obj.name.english
-    english_name.short_description = "EN"
-
-    def spanish_name(self, obj):
-        return obj.name.spanish
-    spanish_name.short_description = "ES"
 
 class AbilityTreeForm(BaseModelForm):
     class Meta:

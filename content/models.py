@@ -132,8 +132,6 @@ class NPC(BaseModel):
     def to_dict(cls):
         return super().to_dict(None, [NPC.name], cls.extra_process)
 
-
-
 class Quest(BaseModel):
     prefix = 'quest_'
     title = LocalizedField(related_name='quest_title', on_delete=models.CASCADE)
@@ -207,7 +205,7 @@ class Rarity(BaseModel):
 
     @classmethod
     def to_dict(cls):
-        return super().to_dict([Rarity.color_start, Rarity.color_end], [Rarity.name])
+        return super().to_dict(None, [Rarity.name])
 
 class ItemTypes(models.TextChoices):
     WEAPON = 'weapon', 'Weapon'
@@ -224,7 +222,6 @@ class Item(BaseModel):
     rarity = models.ForeignKey(Rarity, related_name='item_rarity', on_delete=models.PROTECT)
     value =  models.PositiveIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(10000000)])
 
-    #TODO: implementar Lectura de archivos para seleccionar iconos y prefabs
     icon_path = models.TextField(null=True, blank=True, default="")
 
     type = models.CharField(max_length=20, null=False, blank=False, choices=ItemTypes.choices)
@@ -344,7 +341,6 @@ class Weapon(ItemSubtype):
 
     attack_sequence = models.ManyToManyField(AttackSequence, related_name='weapons', blank=True)
 
-    #TODO: implementar Lectura de archivos para seleccionar iconos y prefabs
     prefab = models.TextField(null=True, blank=True, default="")
     poise_break_force = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
     flat_physical_damage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
@@ -384,8 +380,7 @@ class Equipment(ItemSubtype):
 
     item = models.OneToOneField(Item, on_delete=models.CASCADE, related_name="equipment_item")
     equipment_type = models.ForeignKey(EquipmentType, related_name='equipment_type', on_delete=models.PROTECT)
-    
-    #TODO: implementar Lectura de archivos para seleccionar iconos y prefabs
+
     prefab = models.TextField(null=True, blank=True, default="")
     flat_physical_damage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
     flat_magical_damage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
@@ -427,7 +422,6 @@ class POI(BaseModel):
     
     name = LocalizedField(related_name='poi_name', on_delete=models.CASCADE)
 
-    #TODO: implementar Lectura de archivos para seleccionar iconos y prefabs
     icon_path = models.TextField(null=True, blank=True, default="")
     
     show_at_start = models.BooleanField(default=False)
@@ -465,7 +459,6 @@ class ProjectileType(BaseModel):
 class Projectile(BaseModel):
     prefix = "projectile_"
 
-    #TODO: implementar Lectura de archivos para seleccionar iconos y prefabs
     prefab = models.TextField(null=True, blank=True, default="")
 
     type = models.ForeignKey(ProjectileType, related_name='projectile_type', on_delete=models.PROTECT)
@@ -502,8 +495,7 @@ class AbilityTree(BaseModel):
     name = LocalizedField(related_name='ability_tree_name', on_delete=models.CASCADE)
     slogan = LocalizedField(related_name='ability_tree_slogan', on_delete=models.CASCADE)
     description = LocalizedField(related_name='ability_tree_description', on_delete=models.CASCADE)
-    
-    #TODO: implementar Lectura de archivos para seleccionar iconos y prefabs
+
     icon_path = models.TextField(null=True, blank=True, default="")
 
     @classmethod
@@ -551,7 +543,6 @@ class Ability(BaseModel):
     is_chargeable = models.BooleanField(default=False)
     charge_time = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
 
-    #TODO: implementar Lectura de archivos para seleccionar iconos y prefabs
     locked_icon_path = models.TextField(null=True, blank=True, default="")
     unlocked_icon_path = models.TextField(null=True, blank=True, default="")
 
@@ -642,6 +633,8 @@ class Dialogue(BaseModel):
 
     npc = models.ForeignKey(NPC, related_name='dialogues', on_delete=models.CASCADE)
 
+    type = models.CharField(max_length=20, null=False, blank=False, choices=DialogueTypes.choices)
+    
     button_text = LocalizedField(related_name='dialogue_button_text_name', on_delete=models.CASCADE)
 
     appear_conditions = models.ManyToManyField(Condition, related_name='dialogues_to_appear', blank=True)
@@ -652,7 +645,6 @@ class Dialogue(BaseModel):
     remove_items = models.ManyToManyField(Item, through=DialogItemsToRemove, related_name='removed_by_dialogues', blank=True)
     give_items = models.ManyToManyField(Item, through=DialogItemsToGive, related_name='given_by_dialogues', blank=True)
 
-    type = models.CharField(max_length=20, null=False, blank=False, choices=DialogueTypes.choices)
 
     @classmethod
     def process_subtype(cls, subtype, dialogue_element, data):
@@ -751,7 +743,6 @@ class Basic(DialogueSubtype):
         fields = super().to_dict()
 
         fields['sequence'] = [sequence_item.to_dict() for sequence_item in self.sequence.items.all()]
-        print(fields['sequence'])
         fields['sequence'].sort(key=lambda item: item['index'])
         return fields
 
