@@ -226,7 +226,6 @@ class Item(BaseModel):
 
     type = models.CharField(max_length=20, null=False, blank=False, choices=ItemTypes.choices)
 
-
     @classmethod
     def process_subtype(cls, subtype, element, data):
         """
@@ -428,8 +427,7 @@ class POI(BaseModel):
     show_notification = models.BooleanField(default=True)
 
     #TODO: agregar triggers a POI
-    # on_first_enter_triggered_id
-    # on_first_enter_triggered_diary_entries
+    trigger_conditions = models.ManyToManyField('Condition', related_name='poi_conditions_to_trigger',blank=True)
 
     min_bounds_x = models.FloatField(null=False, blank=False, default=0.0)
     min_bounds_y = models.FloatField(null=False, blank=False, default=0.0)
@@ -439,6 +437,8 @@ class POI(BaseModel):
 
     @classmethod
     def extra_process(cls, poi_element, data):
+        data["trigger_conditions"] = [tc.key for tc in poi_element.trigger_conditions.all()]
+
         data['min_bounds'] = {
             'x': poi_element.min_bounds_x,
             'y': poi_element.min_bounds_y,
@@ -766,12 +766,72 @@ class QuestEnd(DialogueSubtype):
         fields['sequence'].sort(key=lambda item: item['index'])
         return fields
 
-#TODO: implementar todos los modelos.
-"""
-class Diary:
-    pass
+class DiaryPage(BaseModel):
+    prefix = 'diarypage_'
+    name = LocalizedField(related_name='diarypage_name', on_delete=models.CASCADE)
+    appear_conditions = models.ManyToManyField(Condition, related_name='diarypage_to_appear', blank=True)
+    
+    @classmethod
+    def extra_process(cls, diary_page_element, data):
+        data["appear_conditions"] = [dp.key for dp in diary_page_element.appear_conditions.all()]
+        data["diary_entries"] = [dpe.key for dpe in diary_page_element.entries.all()]
 
+    @classmethod
+    def to_dict(cls):
+        return super().to_dict(None, [DiaryPage.name], extra_process=cls.extra_process)
 
-class DialogueSequence:
-    pass
-"""
+class DiaryEntry(BaseModel):
+    prefix = 'diaryentry_'
+    title = LocalizedField(related_name='diaryentry_title', on_delete=models.CASCADE)
+    text = LocalizedField(related_name='diaryentry_text', on_delete=models.CASCADE)
+    appear_conditions = models.ManyToManyField(Condition, related_name='diaryentry_to_appear', blank=True)
+    diary_page = models.ForeignKey(DiaryPage, related_name='entries', on_delete=models.CASCADE)
+
+    @classmethod
+    def extra_process(cls, diary_entry_element, data):
+        data["appear_conditions"] = [de.key for de in diary_entry_element.appear_conditions.all()]
+
+    @classmethod
+    def to_dict(cls):
+        return super().to_dict([DiaryEntry.diary_page], [DiaryEntry.title, DiaryEntry.text], extra_process=cls.extra_process)
+
+# Set Plural names
+models_list = [
+    (Item, 'Items'),
+    (NPC, 'NPCs'),
+    (Quest, 'Quests'),
+    (QuestObjective, 'Quest Objectives'),
+    (ItemReward, 'Item Rewards'),
+    (AbilityTree, 'Ability Trees'),
+    (Ability, 'Abilities'),
+    (Projectile, 'Projectiles'),
+    (POI, 'POIs'),
+    (Dialogue, 'Dialogues'),
+    (DialogueSequence, 'Dialogue Sequences'),
+    (DialogueSequenceItem, 'Dialogue Sequence Items'),
+    (DiaryPage, 'Diary Pages'),
+    (DiaryEntry, 'Diary Entries'),
+    (Condition, 'Conditions'),
+    (LoadingScreenMessage, 'Loading Screen Messages'),
+    (AttackSequence, 'Attack Sequences'),
+    (AbilityType, 'Ability Types'),
+    (ProjectileType, 'Projectile Types'),
+    (WeaponType, 'Weapon Types'), 
+    (DamageType, 'Damage Types'),
+    (EquipmentType, 'Equipment Types'),
+    (Localization, 'Localizations'),
+    (Rarity, 'Rarities'), 
+    # (Consumable, 'Consumables'),
+    # (Weapon, 'Weapons'),
+    # (Equipment, 'Equipment'), 
+    # (QuestItem, 'Quest Items'), 
+    # (Basic, 'Basic Dialogues'),
+    # (QuestPrompt, 'Quest Prompt Dialogues'),
+    # (QuestEnd, 'Quest End Dialogues'),
+    # (DialogItemsRequired, 'Dialogue Items Required'),
+    # (DialogItemsToRemove, 'Dialogue Items to Remove'),
+    # (DialogItemsToGive, 'Dialogue Items to Give'),
+]
+
+for i, model in enumerate(models_list, start=1):
+    model[0]._meta.verbose_name_plural = f"{i}. {model[1]}"

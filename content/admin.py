@@ -42,6 +42,8 @@ from .models import (
     DialogItemsRequired,
     DialogItemsToRemove,
     DialogItemsToGive,
+    DiaryPage,
+    DiaryEntry,
     )
 
 from io import StringIO
@@ -49,9 +51,19 @@ import json
 import os
 from datetime import datetime
 
-
 class CustomAdminSite(admin.AdminSite):
     site_header = "Carpingauchos Content Manager"
+    index_title = "App para gestión de contenido"
+
+    
+    def get_app_list(self, request, app_label=None):
+        """
+        Order custom para los modelos.
+        """
+        app_list = super().get_app_list(request)
+        for app in app_list:
+            app['models'].sort(key=lambda model: int(model['name'].split('.')[0]) if model['name'].split('.')[0].isdigit() else 999)
+        return app_list
 
     def get_urls(self):
         urls = super().get_urls()
@@ -103,6 +115,8 @@ class CustomAdminSite(admin.AdminSite):
                 Dialogue.to_dict(QuestPrompt) +
                 Dialogue.to_dict(QuestEnd)
             ,
+            'DiaryPage': DiaryPage.to_dict(),
+            'DiaryEntry': DiaryEntry.to_dict(),
             'Condition':Condition.to_dict(),
         }
 
@@ -693,7 +707,7 @@ class LoadingScreenMessageAdmin(BaseModelAdmin):
 
 class POIForm(BaseModelForm):
     class Meta:
-        model = Item
+        model = POI
         fields = '__all__'
 
 @admin.register(POI, site=custom_admin_site)
@@ -714,7 +728,7 @@ class POIAdmin(BaseModelAdmin):
 
     fieldsets = (
         ("General", {
-            "fields": ("identifier", "key", "name", "icon_path", "show_at_start", "show_notification"),
+            "fields": ("identifier", "key", "name", "icon_path", "show_at_start", "show_notification", "trigger_conditions"),
         }),
         ("Min Bounds", {
             "fields": ("min_bounds_x", "min_bounds_y"),
@@ -725,7 +739,6 @@ class POIAdmin(BaseModelAdmin):
             "description": "Vector2"
         }),
     )
-
 
 @admin.register(ProjectileType, site=custom_admin_site)
 class ProjectileTypeAdmin(BaseModelAdmin):
@@ -898,11 +911,6 @@ class DialogueForm(BaseModelForm):
         model = Dialogue
         fields = '__all__'
 
-class DialogueForm(BaseModelForm):
-    class Meta:
-        model = Dialogue
-        fields = '__all__'
-
 @admin.register(Dialogue, site=custom_admin_site)
 class DialogueAdmin(BaseModelAdmin):
     key_prefix = Dialogue.prefix
@@ -992,6 +1000,77 @@ class DialogueSequenceItemAdmin(BaseModelAdmin):
     #     return obj.name.spanish
     # spanish_name.short_description = "ES"
 
+class DiaryEntryForm(BaseModelForm):
+    key_prefix = DiaryEntry.prefix
+
+    class Meta:
+        model = DiaryEntry
+        fields = '__all__'
+
+@admin.register(DiaryEntry, site=custom_admin_site)
+class DiaryEntryAdmin(BaseModelAdmin):
+    key_prefix = DiaryEntry.prefix
+    list_display = ('identifier', 'key','english_title', 'spanish_title', 'english_text', 'spanish_text',)
+    
+    ordering = ('key',)
+
+    form = DiaryEntryForm
+
+    def english_title(self, obj):
+        return obj.title.english
+    english_title.short_description = "Title (EN)"
+
+    def spanish_title(self, obj):
+        return obj.title.spanish
+    spanish_title.short_description = "Title (ES)"
+
+    def english_text(self, obj):
+        return obj.text.english
+    english_text.short_description = "Text (EN)"
+
+    def spanish_text(self, obj):
+        return obj.text.spanish
+    spanish_text.short_description = "Text (ES)"
+
+class DiaryPageForm(BaseModelForm):
+    class Meta:
+        model = DiaryPage
+        fields = '__all__'
+
+class DiaryEntryInline(admin.TabularInline):
+    model = DiaryEntry
+    form = DiaryEntryForm
+    extra = 1
+
+    class Media:
+        js = ('admin/js/diary_entry_auto_key_inline.js',)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # Verificamos si el campo apunta a Localization
+        _add_localization_field_filter(self.model.prefix, db_field, kwargs)
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(DiaryPage, site=custom_admin_site)
+class DiaryPageAdmin(BaseModelAdmin):
+    key_prefix = DiaryPage.prefix
+    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+
+    inlines = [DiaryEntryInline]
+
+    ordering = ('key',)
+
+    form = DiaryPageForm
+
+    def english_name(self, obj):
+        return obj.name.english
+    english_name.short_description = "EN"
+
+    def spanish_name(self, obj):
+        return obj.name.spanish
+    spanish_name.short_description = "ES"
+
 # Agregar para ver si los items y los subtipos se están creando bien.
 # @admin.register(Weapon, site=custom_admin_site)
 # class WeaponAdmin(admin.ModelAdmin):
@@ -1012,3 +1091,8 @@ class DialogueSequenceItemAdmin(BaseModelAdmin):
 # class QuestItemAdmin(admin.ModelAdmin):
 #     def has_add_permission(self, request):
 #         return False
+
+#TODO: Arbol de dependencias para las conditions
+# Es decir
+# Listar todas las conditions triggereadas por todos los elementos
+# y para cada condition trigereada quien la escucha
