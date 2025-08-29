@@ -334,10 +334,33 @@ class LocalizationForm(BaseModelForm):
 class LocalizationAdmin(BaseModelAdmin):
     key_prefix = Localization.prefix
 
-    list_display = ('key', 'english', 'spanish')
+    list_display = ('key', 'model_name', 'english', 'spanish')
     ordering = ('key',)
 
     form = LocalizationForm
+
+    def get_related_instance(self, obj):
+        """
+        Devuelve la instancia del modelo que tiene OneToOne con este C
+        (el que exista).
+        """
+        for rel in obj._meta.related_objects:
+            related_name = rel.get_accessor_name()
+            try:
+                instance = getattr(obj, related_name)
+                return instance
+            except rel.related_model.DoesNotExist:
+                continue
+        return None
+
+    def model_name(self, obj):
+        instance = self.get_related_instance(obj)
+        if instance:
+            return instance._meta.model_name
+        return None
+
+    model_name.short_description = "Model"
+
 
 class QuestObjectiveForm(BaseModelForm):
     key_prefix = QuestObjective.prefix
