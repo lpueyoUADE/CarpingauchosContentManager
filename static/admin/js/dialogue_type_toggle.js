@@ -1,3 +1,6 @@
+// Evento para refrescar la seleccion de grilla cuando cambia el tipo de Dialogo.
+const dialogueSubtypeChange = new CustomEvent("dialogueSubtypeChange");
+
 document.addEventListener('DOMContentLoaded', function () {
     const typeField = document.querySelector('.form-row.field-type #id_type');
     const typeFieldReadOnly = document.querySelector('.form-row.field-type div.readonly');
@@ -76,6 +79,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 if(!addAndDeleteButtons[button]['delete'] && button.toLowerCase() == typeField.value.toLowerCase())
                     addAndDeleteButtons[button]['add'].dispatchEvent(new Event("click", { bubbles: true }));
             });
+
+            // Despacho el evento para que el selector de grilla se refresque.
+            document.dispatchEvent(dialogueSubtypeChange);
         });
         updateInlines(typeField.value); // Inicializa al cargar la página
 

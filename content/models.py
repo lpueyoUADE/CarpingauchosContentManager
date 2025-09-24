@@ -98,6 +98,46 @@ class BaseModel(models.Model):
 
         return result
 
+    #TODO: Remover los to_dict originales porque ya no se van a usar incluso algunos modelos cambiaron.
+    @classmethod
+    def to_dict2(cls, json_field_name, *fields_to_select_related, **filters):
+        """
+        Devuelve un diccionario con todas las instancias de un modelo convertidas a diccionario.
+        """
+        return {
+            json_field_name: cls.get_objects(*fields_to_select_related, **filters)
+        }
+
+    @classmethod
+    def get_objects(cls, *fields_to_localize, **filters):
+        """
+        Devuelve todas las instancias del modelo convertidos a diccionario.
+        """
+        fields_to_localize_names = [f.field.name for f in fields_to_localize]
+        objects = cls.objects.select_related(*fields_to_localize_names).filter(**filters)
+    
+        return [obj.to_dict_item() for obj in objects]
+
+    def get_related_one_to_one(self, related_name):
+        """
+        Devuelve la instancia de un modelo relacionado por related_name en un 1 to 1.
+        """
+        related_object = getattr(self, related_name)
+        result = related_object.to_dict_item()
+        return result
+
+    def get_related_objects(self, related_name, *select_related_fields, sort_lambda_key=None, reversed=False):
+        """
+        Devuelve todas las intancias de un modelo relacionado por related_name en M2M o FK.
+        """
+        related_objects = getattr(self, related_name)
+        
+        result = [related_instance.to_dict_item() for related_instance in related_objects.select_related(*select_related_fields)]
+
+        if sort_lambda_key:
+            result.sort(key=lambda item: item[sort_lambda_key], reverse=reversed)
+
+        return result
     
 class Localization(BaseModel):
     prefix = 'loc_'
@@ -170,6 +210,21 @@ class Quest(BaseModel):
     def to_dict(cls):
         return super().to_dict(None, [Quest.title, Quest.brief], cls.extra_process)
 
+    @classmethod
+    def to_dict2(cls):
+        return super().to_dict2("Quests", Quest.title, Quest.brief)
+
+    def to_dict_item(self):
+        return {
+            "ID": self.key,
+            "TitleKey": self.title.key,
+            "BriefKey": self.brief.key,
+            "Objectives": self.get_related_objects(related_name="objectives", sort_lambda_key="index"),
+            "RewardMoney": self.money_reward,
+            "RewardAbilityPoints": self.ability_points_reward,
+            "RewardsItems": self.get_related_objects("itemreward_set", "item"),
+        }
+
 class QuestObjective(BaseModel):
     prefix = 'questobjective_'
 
@@ -187,6 +242,15 @@ class QuestObjective(BaseModel):
     @classmethod
     def to_dict(cls):
         return super().to_dict(None, [QuestObjective.brief], cls.extra_process)
+
+    def to_dict_item(self):
+        return {
+            "index": self.index,
+            "ID": self.key,
+            "TextLocalizedKey": self.brief.key,
+            "IsAddedToCompletitions": self.is_trackeable,
+        }
+
 
 class Rarity(BaseModel):
     prefix = 'rarity_'
@@ -245,6 +309,43 @@ class Item(BaseModel):
 
         return super().to_dict([Item.type], [Item.name, Item.description, Item.rarity], extra_process, type=subtype.type)
 
+    @classmethod
+    def to_dict2(cls):
+        return (
+            super().to_dict2("ConsumableItems", Item.name, Item.description, Item.rarity, type=Consumable.type) | 
+            super().to_dict2("WeaponItems", Item.name, Item.description, Item.rarity, type=Weapon.type) |
+            super().to_dict2("ArmorItems", Item.name, Item.description, Item.rarity, type=Equipment.type) |
+            super().to_dict2("KeyItems", Item.name, Item.description, Item.rarity, type=QuestItem.type)
+        )
+    
+    def to_dict_item(self):
+        # if self.type == ItemTypes.CONSUMABLE:
+        #     item_subtype = self.get_related_one_to_one(related_name="basic_dialogue")
+        
+        # elif self.type == ItemTypes.WEAPON:
+        #     item_subtype = self.get_related_one_to_one(related_name="quest_prompt_dialogue")
+
+        # elif self.type == ItemTypes.EQUIPMENT:
+        #     item_subtype = self.get_related_one_to_one(related_name="quest_end_dialogue")
+
+        # elif self.type == ItemTypes.QUEST:
+        #     item_subtype = self.get_related_one_to_one(related_name="quest_end_dialogue")
+
+        return {
+            "ItemData": {
+                "ID": self.key,
+                "NameKey": self.name.key,
+                "DescriptionKey": self.description.key,
+                "Rarity": self.rarity.key,
+                "Value": self.value,
+                "Icon": self.icon_path,
+                "Attributes": {
+                    "asd":"aSD",
+                }
+            } 
+        } 
+    # | item_subtype
+
 class ItemSubtype(models.Model):
     type = None
     item = models.OneToOneField(Item, on_delete=models.CASCADE, related_name="subtype_item")
@@ -281,6 +382,12 @@ class ItemReward(models.Model):
 
     def __str__(self):
         return f'Quest: {self.quest.key} - Item: {self.item.key} - Amount: {self.amount}'
+
+    def to_dict_item(self):
+        return {
+            "ID": self.item.key,
+            "Quantity": self.amount
+        }
 
 class Consumable(ItemSubtype):
     type = ItemTypes.CONSUMABLE
@@ -587,6 +694,9 @@ class Ability(BaseModel):
 class Condition(BaseModel):
     prefix = 'condition_'
 
+    def to_dict_item(self):
+        return self.key
+
 class DialogItemsRequired(models.Model):
     dialogue = models.ForeignKey('Dialogue', on_delete=models.CASCADE)
     item = models.ForeignKey(Item, on_delete=models.CASCADE)
@@ -639,7 +749,8 @@ class Dialogue(BaseModel):
 
     appear_conditions = models.ManyToManyField(Condition, related_name='dialogues_to_appear', blank=True)
     no_appear_conditions = models.ManyToManyField(Condition, related_name='dialogues_to_no_appear', blank=True)
-    trigger_conditions = models.ManyToManyField(Condition, related_name='dialogues_to_trigger',blank=True)
+    trigger_id_conditions = models.ManyToManyField(Condition, related_name='ids_to_trigger', blank=True)
+    trigger_diary_conditions = models.ManyToManyField(Condition, related_name='diaries_to_trigger', blank=True)
 
     required_items = models.ManyToManyField(Item, through=DialogItemsRequired, related_name='required_by_dialogues', blank=True)
     remove_items = models.ManyToManyField(Item, through=DialogItemsToRemove, related_name='removed_by_dialogues', blank=True)
@@ -671,6 +782,39 @@ class Dialogue(BaseModel):
         extra_process_by_subtype = lambda element, data: cls.process_subtype(subtype, element, data)
         return super().to_dict(None, [Dialogue.button_text], extra_process_by_subtype, type=subtype.type)
 
+    @classmethod
+    def to_dict2(cls):
+        return (
+            super().to_dict2("NormalDialogues", Dialogue.button_text, type=Basic.type) | 
+            super().to_dict2("QuestsStartDialogues", Dialogue.button_text, type=QuestPrompt.type) |
+            super().to_dict2("QuestsFinishDialogues", Dialogue.button_text, type=QuestEnd.type)
+        )
+
+    def to_dict_item(self):
+        if self.type == DialogueTypes.BASIC:
+            dialog_subtype = self.get_related_one_to_one(related_name="basic_dialogue")
+        
+        elif self.type == DialogueTypes.QUEST_PROMPT:
+            dialog_subtype = self.get_related_one_to_one(related_name="quest_prompt_dialogue")
+
+        elif self.type == DialogueTypes.QUEST_END:
+            dialog_subtype = self.get_related_one_to_one(related_name="quest_end_dialogue")
+
+        return {
+            "DialogueID": self.key,
+            "ButtonTextLocalizedKey": self.button_text.key,
+            "ConditionsAndTriggers": {
+                "AppearConditions": self.get_related_objects(related_name="appear_conditions"),
+                "NotAppearConditions": self.get_related_objects(related_name="no_appear_conditions"),
+                "TriggerCompletitionsIDs": self.get_related_objects(related_name="trigger_id_conditions"),
+                "TriggerDiaryEntriesIDs": self.get_related_objects(related_name="trigger_diary_conditions"),
+                "RequiredItems": []
+            },
+            "RemoveItems": [],
+            "AddItems": [],
+
+        } | dialog_subtype
+
 class DialogueSubtype(models.Model):
     type = None
     dialogue = models.OneToOneField(Dialogue, on_delete=models.CASCADE, related_name="dialogue_subtype")
@@ -699,14 +843,31 @@ class DialogueSubtype(models.Model):
         fields.update(data)
 
         return fields
+    
+    def get_related_one_to_one(self, related_name):
+        """
+        Devuelve la instancia de un modelo relacionado por related_name en un 1 to 1.
+        """
+        related_object = getattr(self, related_name)
+        result = related_object.to_dict_item()
+        return result
 
+class DialogueSingleItem(BaseModel):
+    prefix = 'dialoguesingleitem_'
+    text = LocalizedField(related_name='dialogue_single_item_text', on_delete=models.CASCADE)
+    speaker = models.BooleanField(default=True, help_text="False es NPC, True es Player.")
+
+    def to_dict_item(self):
+        return {
+            "IsPlayer": self.speaker,
+            "LocalizedTextKey":self.text.key,
+        }
 
 class DialogueSequenceItem(BaseModel):
     prefix = 'dialoguesequenceitem_'
     text = LocalizedField(related_name='dialogue_sequence_item_text', on_delete=models.CASCADE)
     speaker = models.BooleanField(default=True, help_text="False es NPC, True es Player.")
     index = models.PositiveIntegerField(default=1, help_text='Orden del diálogo', validators=[MinValueValidator(1), MaxValueValidator(1000)])
-
     sequence = models.ForeignKey('DialogueSequence', related_name='items', on_delete=models.CASCADE)
 
     def to_dict(self):
@@ -726,10 +887,20 @@ class DialogueSequenceItem(BaseModel):
         fields.update(data)
 
         return fields
+    
+    def to_dict_item(self):
+        return {
+            "Index": self.index,
+            "IsPlayer": self.speaker,
+            "LocalizedTextKey": self.text.key,
+        }
 
 #TODO: Revisar si se puede omitir o hacer automatico este modelo
 class DialogueSequence(BaseModel):
     prefix = 'dialoguesequence_'
+
+    def to_dict_item(self):
+        return self.get_related_objects("items",sort_lambda_key="Index")
 
 class Basic(DialogueSubtype):
     type = DialogueTypes.BASIC
@@ -746,13 +917,30 @@ class Basic(DialogueSubtype):
         fields['sequence'].sort(key=lambda item: item['index'])
         return fields
 
+    def to_dict_item(self):
+        return {
+            "IsOneShot": self.is_one_shot,
+            "IsFirstTalk": self.is_first_talk,
+            "DialogueSequence": self.get_related_one_to_one("sequence"),
+        }
+
 class QuestPrompt(DialogueSubtype):
     type = DialogueTypes.QUEST_PROMPT
     dialogue = models.OneToOneField(Dialogue, on_delete=models.CASCADE, related_name="quest_prompt_dialogue")
 
-    text = models.OneToOneField(DialogueSequenceItem, on_delete=models.CASCADE, related_name="quest_prompt_dialogue_text")
-    deny_text = models.OneToOneField(DialogueSequenceItem, on_delete=models.CASCADE, related_name="quest_prompt_dialogue_deny_text")
-    acccept_text = models.OneToOneField(DialogueSequenceItem, on_delete=models.CASCADE, related_name="quest_prompt_dialogue_accept_text")
+    text = models.OneToOneField(DialogueSingleItem, on_delete=models.CASCADE, related_name="quest_prompt_dialogue_text")
+    deny_text = models.OneToOneField(DialogueSingleItem, on_delete=models.CASCADE, related_name="quest_prompt_dialogue_deny_text")
+    acccept_text = models.OneToOneField(DialogueSingleItem, on_delete=models.CASCADE, related_name="quest_prompt_dialogue_accept_text")
+
+    quest = models.OneToOneField(Quest, on_delete=models.CASCADE, related_name="quest_prompt_dialogue_quest")
+
+    def to_dict_item(self):
+        return {
+            "QuestID": self.quest.key,
+            "Dialogue": self.get_related_one_to_one("text"),
+            "AcceptQuestDialogue": self.get_related_one_to_one("deny_text"),
+            "DeclineQuestDialogue": self.get_related_one_to_one("acccept_text"),
+        }
 
 class QuestEnd(DialogueSubtype):
     type = DialogueTypes.QUEST_END
@@ -760,11 +948,19 @@ class QuestEnd(DialogueSubtype):
 
     sequence = models.OneToOneField(DialogueSequence, related_name='quest_end_dialogue_sequence', on_delete=models.CASCADE)
 
+    quest = models.OneToOneField(Quest, on_delete=models.CASCADE, related_name="quest_end_dialogue_quest")
+
     def to_dict(self):
         fields = super().to_dict()
         fields['sequence'] = [sequence_item.to_dict() for sequence_item in self.sequence.items.all()]
         fields['sequence'].sort(key=lambda item: item['index'])
         return fields
+
+    def to_dict_item(self):
+        return {
+            "QuestID": self.quest.key,
+            "DialogueSequence": self.get_related_one_to_one("sequence"),
+        }
 
 class DiaryPage(BaseModel):
     prefix = 'diarypage_'
@@ -779,6 +975,18 @@ class DiaryPage(BaseModel):
     @classmethod
     def to_dict(cls):
         return super().to_dict(None, [DiaryPage.name], extra_process=cls.extra_process)
+    
+    @classmethod
+    def to_dict2(cls):
+        return super().to_dict2(DiaryPages=[DiaryPage.name])
+
+    def to_dict_item(self):
+        return {
+            "PageID": self.key,
+            "TitleTextKey": self.name.key,
+            "AppearConditions": self.get_related_objects(related_name="appear_conditions"),
+            "PageEntries": self.get_related_objects(related_name="entries"),
+        }
 
 class DiaryEntry(BaseModel):
     prefix = 'diaryentry_'
@@ -795,6 +1003,14 @@ class DiaryEntry(BaseModel):
     def to_dict(cls):
         return super().to_dict([DiaryEntry.diary_page], [DiaryEntry.title, DiaryEntry.text], extra_process=cls.extra_process)
 
+    def to_dict_item(self):
+        return {
+            "AppearConditions": self.get_related_objects("appear_conditions"),
+            "EntryID": self.key,
+            "EntryTitleKey": self.title.key,
+            "EntryTextKey": self.text.key,
+        }
+
 # Set Plural names
 models_list = [
     (Item, 'Items'),
@@ -806,6 +1022,7 @@ models_list = [
     (POI, 'POIs'),
     (Dialogue, 'Dialogues'),
     (DialogueSequence, 'Dialogue Sequences'),
+    (DialogueSingleItem, 'Dialogue Single Items'),
     (DialogueSequenceItem, 'Dialogue Sequence Items'),
     (DiaryPage, 'Diary Pages'),
     (DiaryEntry, 'Diary Entries'),

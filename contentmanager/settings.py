@@ -127,5 +127,6 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-SPRITES_BASE_PATH = 'C:/projects/Unity/Unrated/ProjectUnrated/Assets/_Develop/Sprites'
-PREFABS_BASE_PATH = 'C:/projects/Unity/Unrated/ProjectUnrated/Assets/_Develop/Prefabs'
+ABSOLUTE_BASE_PATH = 'C:/projects/Unity/Unrated/ProjectUnrated'
+SPRITES_BASE_PATH = ABSOLUTE_BASE_PATH + '/Assets/_Develop/Sprites'
+PREFABS_BASE_PATH = ABSOLUTE_BASE_PATH + '/Assets/_Develop/Prefabs'

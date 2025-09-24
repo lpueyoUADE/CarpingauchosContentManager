@@ -38,6 +38,7 @@ from .models import (
     QuestPrompt,
     QuestEnd,
     DialogueSequence,
+    DialogueSingleItem,
     DialogueSequenceItem,
     DialogItemsRequired,
     DialogItemsToRemove,
@@ -54,7 +55,6 @@ from datetime import datetime
 class CustomAdminSite(admin.AdminSite):
     site_header = "Carpingauchos Content Manager"
     index_title = "App para gestión de contenido"
-
     
     def get_app_list(self, request, app_label=None):
         """
@@ -69,7 +69,11 @@ class CustomAdminSite(admin.AdminSite):
         urls = super().get_urls()
         custom_urls = [
             path("export-localization/", self.admin_view(self.export_localization), name="export-localization"),
-            path("download-localization/", self.admin_view(self.download_localization), name="download-localization"),
+            path("download-full-json/", self.admin_view(self.download_full_json), name="download-full-json"),
+            path("download-quests/", self.admin_view(self.download_quests), name="download-quests"),
+            path("download-diary-pages/", self.admin_view(self.download_diary_pages), name="download-diary-pages"),
+            path("download-dialogues/", self.admin_view(self.download_dialogues), name="download-dialogues"),
+            path("download-items/", self.admin_view(self.download_items), name="download-items"),
         ]
         return custom_urls + urls
 
@@ -85,7 +89,7 @@ class CustomAdminSite(admin.AdminSite):
         messages.success(request, "Localization exportado correctamente.")
         return HttpResponseRedirect("/admin/")
     
-    def download_localization(self, request):
+    def download_full_json(self, request):
         buffer = StringIO()
 
         # Serializamos múltiples modelos y los agregamos al buffer como una lista JSON
@@ -132,7 +136,36 @@ class CustomAdminSite(admin.AdminSite):
         messages.success(request, "Exportación completa generada y descargada.")
         return response
 
-        
+    def donwload_template(self, request, model, exported_model_name):
+        buffer = StringIO()
+        data =model.to_dict2()
+
+        print(data)
+
+        # Convertimos a JSON final
+        json.dump(data, buffer, indent=4, ensure_ascii=False)
+
+        today = datetime.now().strftime("%d-%m-%Y")
+        filename = f"{exported_model_name.lower()}_export_{today}.json"
+
+        response = HttpResponse(buffer.getvalue(), content_type='application/json')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        messages.success(request, f"JSON de {exported_model_name.replace('_', ' ')}s generado con éxito.")
+        return response
+
+    def download_quests(self, request):
+        return self.donwload_template(request, Quest, "Quest")
+
+    def download_diary_pages(self, request):
+        return self.donwload_template(request, DiaryPage, "Diary_Page")
+
+    def download_dialogues(self, request):
+        return self.donwload_template(request, Dialogue, "Dialogue")
+    
+    def download_items(self, request):
+        return self.donwload_template(request, Item, "Item")
+
 custom_admin_site = CustomAdminSite(name='custom_admin')
 
 def _add_localization_field_filter(key_prefix, db_field, kwargs):
@@ -142,7 +175,7 @@ def _add_localization_field_filter(key_prefix, db_field, kwargs):
     """
     if db_field.related_model == Localization:
         # Filtramos por key que contenga cierto texto
-        kwargs["queryset"] = Localization.objects.filter(Q(key__icontains=key_prefix) & Q(key__icontains=db_field.name))
+        kwargs["queryset"] = Localization.objects.filter(Q(key__icontains=key_prefix) & Q(key__icontains=db_field.name)).order_by('key')
 
 class BaseModelAdmin(admin.ModelAdmin):
     key_prefix = ''
@@ -315,10 +348,22 @@ class BaseModelForm(forms.ModelForm):
 class LocalizationForm(BaseModelForm):
     key_prefix = Localization.prefix
 
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = Localization
         fields = '__all__'
         readonly_fields = ('identifier',)
+        widgets = {
+            'identifier': forms.TextInput(
+                attrs={
+                    'style': 'width: 100%;',
+                }
+            ),
+            'key': forms.TextInput(
+                attrs={
+                    'style': 'width: 100%;',
+                }
+            ),
+        }  
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -365,7 +410,7 @@ class LocalizationAdmin(BaseModelAdmin):
 class QuestObjectiveForm(BaseModelForm):
     key_prefix = QuestObjective.prefix
 
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = QuestObjective
         fields = '__all__'
 
@@ -411,7 +456,7 @@ class QuestObjectiveAdmin(BaseModelAdmin):
     quest_identifier.short_description = "Quest"
 
 class QuestForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = Quest
         fields = '__all__'
 
@@ -534,7 +579,7 @@ class QuestItemInline(admin.StackedInline):
     form = QuestItemInlineForm
 
 class ItemForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = Item
         fields = ('identifier', 'key', 'rarity', 'type', 'name', 'description', 'value', 'icon_path')
 
@@ -581,7 +626,7 @@ class EquipmentTypeAdmin(BaseModelAdmin):
     spanish_name.short_description = "ES"
 
 class AttackSequenceForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = AttackSequence
         fields = '__all__'
 
@@ -629,11 +674,10 @@ class ItemAdmin(BaseModelAdmin):
     rarity_name.admin_order_field = 'rarity'
 
 class RarityForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = Rarity
         fields = '__all__'
         widgets = {
-            **BaseModelForm.Meta.widgets,
             'color_start': forms.TextInput(attrs={'type': 'color'}),
             'color_end': forms.TextInput(attrs={'type': 'color'}),
         }
@@ -729,7 +773,7 @@ class LoadingScreenMessageAdmin(BaseModelAdmin):
     spanish_message.short_description = "ES"
 
 class POIForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = POI
         fields = '__all__'
 
@@ -778,7 +822,7 @@ class ProjectileTypeAdmin(BaseModelAdmin):
     spanish_name.short_description = "ES"
 
 class ProjectileForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = Projectile
         fields = '__all__'
 
@@ -792,7 +836,7 @@ class ProjectileAdmin(BaseModelAdmin):
     form = ProjectileForm
 
 class AbilityTreeForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = AbilityTree
         fields = '__all__'
 
@@ -828,7 +872,7 @@ class AbilityTypeAdmin(BaseModelAdmin):
     spanish_name.short_description = "ES"
 
 class AbilityForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = Ability
         fields = '__all__'
 
@@ -854,7 +898,7 @@ class AbilityAdmin(BaseModelAdmin):
     spanish_name.short_description = "ES"
 
 class ConditionForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = Condition
         fields = '__all__'
 
@@ -930,14 +974,14 @@ class GiveItemsDialogueInline(admin.TabularInline):
     extra = 0
     
 class DialogueForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = Dialogue
         fields = '__all__'
 
 @admin.register(Dialogue, site=custom_admin_site)
 class DialogueAdmin(BaseModelAdmin):
     key_prefix = Dialogue.prefix
-    # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+    list_display = ('identifier', 'key', 'type',)
 
     ordering = ('key',)
 
@@ -971,12 +1015,42 @@ class DialogueAdmin(BaseModelAdmin):
         return obj.name.spanish
     spanish_name.short_description = "ES"
 
+class DialogueSingleItemForm(BaseModelForm):
+    key_prefix = DialogueSingleItem.prefix
+
+    class Meta:
+        model = DialogueSingleItem
+        fields = '__all__'
+        widgets = {
+            'identifier': forms.TextInput(
+                attrs={
+                    'style': 'width: 100%;',
+                }
+            ),
+            'key': forms.TextInput(
+                attrs={
+                    'style': 'width: 100%;',
+                }
+            ),
+        }  
+
 class DialogueSequenceItemForm(BaseModelForm):
     key_prefix = DialogueSequenceItem.prefix
-    
+
     class Meta:
         model = DialogueSequenceItem
         fields = '__all__'
+
+class DialogueSingleItemInline(admin.TabularInline):
+    model = DialogueSingleItem
+    form = DialogueSingleItemForm
+    extra = 1
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # Verificamos si el campo apunta a Localization
+        _add_localization_field_filter(self.model.prefix, db_field, kwargs)
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 class DialogueSequenceItemInline(admin.TabularInline):
     model = DialogueSequenceItem
@@ -993,7 +1067,7 @@ class DialogueSequenceItemInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 class DialogueSequenceForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = DialogueSequence
         fields = '__all__'
 
@@ -1005,6 +1079,28 @@ class DialogueSequenceAdmin(BaseModelAdmin):
     ordering = ('key',)
     inlines = [DialogueSequenceItemInline]
     form = DialogueSequenceForm
+
+@admin.register(DialogueSingleItem, site=custom_admin_site)
+class DialogueSingleItemAdmin(BaseModelAdmin):
+    key_prefix = DialogueSingleItem.prefix
+    # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+
+    ordering = ('key',)
+
+    form = DialogueSingleItemForm
+
+    # class Media:
+    #     js = (
+    #         'admin/js/auto_localizations.js',
+    #     )
+
+    # def english_name(self, obj):
+    #     return obj.name.english
+    # english_name.short_description = "EN"
+
+    # def spanish_name(self, obj):
+    #     return obj.name.spanish
+    # spanish_name.short_description = "ES"
 
 @admin.register(DialogueSequenceItem, site=custom_admin_site)
 class DialogueSequenceItemAdmin(BaseModelAdmin):
@@ -1026,7 +1122,7 @@ class DialogueSequenceItemAdmin(BaseModelAdmin):
 class DiaryEntryForm(BaseModelForm):
     key_prefix = DiaryEntry.prefix
 
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = DiaryEntry
         fields = '__all__'
 
@@ -1056,7 +1152,7 @@ class DiaryEntryAdmin(BaseModelAdmin):
     spanish_text.short_description = "Text (ES)"
 
 class DiaryPageForm(BaseModelForm):
-    class Meta:
+    class Meta(BaseModelForm.Meta):
         model = DiaryPage
         fields = '__all__'
 

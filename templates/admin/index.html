@@ -4,11 +4,20 @@
 {% block content %}
     <h2>ACTIONS</h2>
         <div class="actions">
-            <!-- <a class="export-button" href="{% url 'admin:export-localization' %}">
-                Exportar JSON
-            </a> -->
-            <a class="export-button" href="{% url 'admin:download-localization' %}">
-                Descargar JSON
+            <a id="FullJson" class="export-button" href="{% url 'admin:download-full-json' %}" title="Descargar un único JSON con todas las entidades">
+                Descargar full JSON
+            </a>
+            <a class="export-button" href="{% url 'admin:download-quests' %}" title="Descargar JSON de Quests">
+                Descargar Quests
+            </a>
+            <a class="export-button" href="{% url 'admin:download-diary-pages' %}" title="Descargar JSON de Diary Pages">
+                Descargar Diary Pages
+            </a>
+            <a class="export-button" href="{% url 'admin:download-dialogues' %}" title="Descargar JSON de Dialogues">
+                Descargar Dialogues
+            </a>
+            <a class="export-button" href="{% url 'admin:download-items' %}" title="Descargar JSON de Items">
+                Descargar Items
             </a>
         </div>
     </table>
@@ -31,7 +40,8 @@
         .actions {
             display: flex;
             align-items: center;
-
+            justify-content: center;
+            flex-wrap: wrap;
             gap: 10px;
             margin: 10px;
             padding: 25px 0;
@@ -40,11 +50,16 @@
                 color: white;
                 border: none;
                 padding: 15px;
+                width: 140px;
+                text-align: center;
 
                 background-color: green;
                 transition: 0.2s all;
 
-                &:hover {
+                &#FullJson {
+                   background-color: crimson;
+                }
+                &:hover, &#FullJson:hover {
                     background-color: black;
                     color: white;
                 }

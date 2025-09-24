@@ -5,6 +5,7 @@ from django.utils.safestring import mark_safe
 
 DEFAULT_PREFAB_IMAGE = "/static/admin/images/default_prefab.png" 
 
+#TODO: Revisar esto porque se cambia solo el icono seleccionado
 def _get_file_choices(files_base_path, *valid_file_formats):
     base_path = files_base_path
     if not base_path or not os.path.exists(base_path):
@@ -45,7 +46,7 @@ class FileGridWidget(forms.Select):
                     img_url = f"/{self.static_files_path}/{rel_path}".replace('\\', '/')
 
                 options.append({
-                    'value': abs_path,
+                    'value': abs_path, #TODO: Arreglar que el path no incluya lo previo a Assets/_develop etc.
                     'label': os.path.basename(rel_path),
                     'selected': option['value'] == value,
                     'image_url': img_url

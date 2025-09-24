@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'message',
         'slogan',
         'button_text',
+        'text',
     ];
 
     const addButtonsList = [];
@@ -82,6 +83,8 @@ document.addEventListener('DOMContentLoaded', function () {
             editDescriptionButton.addEventListener('input', elementsToUpdate);
         }
     }
+
+    elementsToUpdate();
 
     isEditingLocalizationPopup = 
         window.location.href.includes('popup') &&
