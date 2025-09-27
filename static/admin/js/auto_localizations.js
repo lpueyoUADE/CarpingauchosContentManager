@@ -56,10 +56,10 @@ document.addEventListener('DOMContentLoaded', function () {
             updateHref(button.anchor, button.name);
         });
 
-        if (isEditingForm()) {
-            updateEditHref(editNameButton, 'name');
-            updateEditHref(editDescriptionButton, 'description');
-        }
+        // if (isEditingForm()) {
+        //     updateEditHref(editNameButton, 'name');
+        //     updateEditHref(editDescriptionButton, 'description');
+        // }
     }
 
     if(identifierInput){

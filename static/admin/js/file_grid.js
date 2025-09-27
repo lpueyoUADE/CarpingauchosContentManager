@@ -12,6 +12,7 @@ function initGrids() {
             selectedImg.src = selectedElement.dataset.img;
             selectedName.textContent = selectedElement.dataset.name;
             selectedElement.classList.add('selected'); // marcarlo como seleccionado
+            selectElement.value = selectedElement.dataset.value;
         }
 
         const items = container.querySelectorAll('.grid-item');

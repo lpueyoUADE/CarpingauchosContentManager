@@ -5,16 +5,16 @@ function isEditingForm() {
 
 function updateKey(identifierInput, keyInput, raritySelect, typeSelect) {
     const prefix = identifierInput.dataset.keyPrefix || '';
-    const slug = identifierInput.value
-        .toLowerCase()
-        .replace(/[^\w\s]/g, '')    // elimina caracteres no alfanuméricos
-        .trim()
-        .replace(/\s+/g, '_');      // reemplaza espacios por guiones bajos
+    const slug = identifierInput.value;
 
     const rarity = raritySelect.options[raritySelect.selectedIndex].text.split("_")[1];
 
     const typeValue = isEditingForm() ? typeSelect.innerText : typeSelect.value;
-    keyInput.value = prefix + typeValue.toLowerCase() + "_" + slug + "_" + rarity;
+    keyInput.value = prefix + typeValue + "_" + slug + "_" + rarity
+    keyInput.value = keyInput.value.toLowerCase()
+        .replace(/[^\w\s]/g, '')    // elimina caracteres no alfanuméricos
+        .trim()
+        .replace(/\s+/g, '_');      // reemplaza espacios por guiones bajos;
 }
 
 document.addEventListener('DOMContentLoaded', function () {

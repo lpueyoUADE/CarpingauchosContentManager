@@ -14,6 +14,7 @@ from .models import (
     NPC,
     Quest, 
     QuestObjective,
+    ItemAttributes,
     ItemReward,
     Item, 
     Consumable,
@@ -139,8 +140,6 @@ class CustomAdminSite(admin.AdminSite):
     def donwload_template(self, request, model, exported_model_name):
         buffer = StringIO()
         data =model.to_dict2()
-
-        print(data)
 
         # Convertimos a JSON final
         json.dump(data, buffer, indent=4, ensure_ascii=False)
@@ -542,6 +541,11 @@ class QuestItemInlineForm(BaseItemInlineForm):
         model = QuestItem
         fields = '__all__'
 
+class ItemAttributesInlineForm(BaseItemInlineForm):
+    class Meta:
+        model = ItemAttributes
+        fields = '__all__'
+
 class ConsumableInline(admin.StackedInline):
     model = Consumable
     extra = 0
@@ -578,6 +582,15 @@ class QuestItemInline(admin.StackedInline):
 
     form = QuestItemInlineForm
 
+class ItemAttributesInline(admin.StackedInline):
+    model = ItemAttributes
+    extra = 1
+    min_num = 1
+    max_num = 1
+    can_delete = False
+
+    form = ItemAttributesInlineForm
+
 class ItemForm(BaseModelForm):
     class Meta(BaseModelForm.Meta):
         model = Item
@@ -600,8 +613,8 @@ class WeaponTypeAdmin(BaseModelAdmin):
 @admin.register(DamageType, site=custom_admin_site)
 class DamageTypeAdmin(BaseModelAdmin):
     key_prefix = DamageType.prefix
-    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
-    ordering = ('key',)
+    list_display = ('identifier', 'key', 'damage_type_id', 'english_name', 'spanish_name',)
+    ordering = ('damage_type_id',)
    
     def english_name(self, obj):
         return obj.name.english
@@ -616,7 +629,16 @@ class EquipmentTypeAdmin(BaseModelAdmin):
     key_prefix = EquipmentType.prefix
     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
     ordering = ('key',)
-        
+
+    def has_add_permission(self, request, obj=None):
+        enabled_views = (
+            'index',
+            'content_equipment_type_changelist',
+            'content_equipment_type_add',
+            'content_equipment_type_change'
+        )
+        return request.resolver_match and request.resolver_match.url_name in enabled_views
+     
     def english_name(self, obj):
         return obj.name.english
     english_name.short_description = "EN"
@@ -643,7 +665,7 @@ class ItemAdmin(BaseModelAdmin):
     ordering = ('key', 'type')
 
     inlines = [
-        WeaponInline, EquipmentInline, ConsumableInline, QuestItemInline
+        WeaponInline, EquipmentInline, ConsumableInline, QuestItemInline, ItemAttributesInline, 
     ]
 
     form = ItemForm
@@ -685,9 +707,9 @@ class RarityForm(BaseModelForm):
 @admin.register(Rarity, site=custom_admin_site)
 class RarityAdmin(BaseModelAdmin):
     key_prefix = Rarity.prefix
-    list_display = ('key', 'gradient_color_start', 'gradient_color_end', 'rarity_name','english_name', 'spanish_name',)
+    list_display = ('key', 'rarity_json_id','gradient_color_start', 'gradient_color_end', 'rarity_name','english_name', 'spanish_name',)
 
-    ordering = ('key',)
+    ordering = ('rarity_json_id',)
 
     form = RarityForm
 
@@ -1210,6 +1232,11 @@ class DiaryPageAdmin(BaseModelAdmin):
 # class QuestItemAdmin(admin.ModelAdmin):
 #     def has_add_permission(self, request):
 #         return False
+
+@admin.register(ItemAttributes, site=custom_admin_site)
+class ItemAttributesAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
 
 #TODO: Arbol de dependencias para las conditions
 # Es decir

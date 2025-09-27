@@ -1,13 +1,11 @@
 import os
 from django import forms
 from django.conf import settings
-from django.utils.safestring import mark_safe
 
 DEFAULT_PREFAB_IMAGE = "/static/admin/images/default_prefab.png" 
 
-#TODO: Revisar esto porque se cambia solo el icono seleccionado
-def _get_file_choices(files_base_path, *valid_file_formats):
-    base_path = files_base_path
+def _get_file_choices(partial_base_path, *valid_file_formats):
+    base_path = settings.ABSOLUTE_BASE_PATH + partial_base_path
     if not base_path or not os.path.exists(base_path):
         return []
 
@@ -16,8 +14,9 @@ def _get_file_choices(files_base_path, *valid_file_formats):
         for file in files:
             if file.lower().endswith(valid_file_formats):
                 full_path = os.path.join(root, file)
-                rel_path = os.path.relpath(full_path, base_path)
-                choices.append((full_path, rel_path))  # value = ruta absoluta, label = ruta relativa
+                rel_path = os.path.relpath(full_path, base_path).replace("\\", "/")
+                unity_path = (partial_base_path + rel_path).replace("\\", "/")
+                choices.append((unity_path, rel_path))
 
     return sorted(choices, key=lambda x: x[1])
 
@@ -29,13 +28,14 @@ def get_prefab_choices():
 
 class FileGridWidget(forms.Select):
     static_files_path = ''
+    files_partial_base_path = ''
     template_name = 'widgets/file_grid.html'
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)
         options = []
         for group_name, group_choices, index in context['widget']['optgroups']:
             for option in group_choices:
-                abs_path = option['value']
+                unity_path = option['value']
                 rel_path = option['label']
                 img_url = f"/{self.static_files_path}/{rel_path}".replace('\\', '/')
                 
@@ -46,7 +46,7 @@ class FileGridWidget(forms.Select):
                     img_url = f"/{self.static_files_path}/{rel_path}".replace('\\', '/')
 
                 options.append({
-                    'value': abs_path, #TODO: Arreglar que el path no incluya lo previo a Assets/_develop etc.
+                    'value': unity_path.replace("\\", "/"),
                     'label': os.path.basename(rel_path),
                     'selected': option['value'] == value,
                     'image_url': img_url
@@ -58,7 +58,9 @@ class FileGridWidget(forms.Select):
 class SpriteGridWidget(FileGridWidget):
     static_files_path = 'static_sprites'
     selected_title = 'sprites'
+    files_partial_base_path = settings.SPRITES_BASE_PATH
 
 class PrefabGridWidget(FileGridWidget):
     static_files_path = 'static_prefabs'
     selected_title = 'prefabs'
+    files_partial_base_path = settings.PREFABS_BASE_PATH

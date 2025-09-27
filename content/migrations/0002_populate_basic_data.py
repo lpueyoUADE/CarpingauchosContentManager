@@ -5,6 +5,7 @@ rarities = [
     {
         'identifier': 'Common',
         'key': 'rarity_common',
+        'rarity_json_id': 0,
         'color_start': '#FFFFFF',
         'color_end': '#FFFFFF',
         'localization_identifier': 'rarity_common_name',
@@ -15,6 +16,7 @@ rarities = [
     {
         'identifier': 'Uncommon',
         'key': 'rarity_uncommon',
+        'rarity_json_id': 1,
         'color_start': '#33FF44',
         'color_end': '#33FF44',
         'localization_identifier': 'rarity_uncommon_name',
@@ -25,6 +27,7 @@ rarities = [
     {
         'identifier': 'Rare',
         'key': 'rarity_rare',
+        'rarity_json_id': 2,
         'color_start': '#3399FF',
         'color_end': '#3399FF',
         'localization_identifier': 'rarity_rare_name',
@@ -35,6 +38,7 @@ rarities = [
     {
         'identifier': 'Epic',
         'key': 'rarity_epic',
+        'rarity_json_id': 3,
         'color_start': '#9933FF',
         'color_end': '#9933FF',
         'localization_identifier': 'rarity_epic_name',
@@ -45,6 +49,7 @@ rarities = [
     {
         'identifier': 'Legendary',
         'key': 'rarity_legendary',
+        'rarity_json_id': 4,
         'color_start': '#FFAA00',
         'color_end': '#FFAA00',
         'localization_identifier': 'rarity_legendary_name',
@@ -91,6 +96,7 @@ damage_types = [
     {
         'identifier': 'None',
         'key': 'damage_type_none',
+        'damage_type_id': 0,
         'localization_identifier': 'damage_type_none_name',
         'localization_key': 'loc_damage_type_none_name',
         'localization_english': 'None',
@@ -99,6 +105,7 @@ damage_types = [
     {
         'identifier': 'Stand',
         'key': 'damage_type_stand',
+        'damage_type_id': 1,
         'localization_identifier': 'damage_type_stand_name',
         'localization_key': 'loc_damage_type_stand_name',
         'localization_english': 'Stand',
@@ -107,6 +114,7 @@ damage_types = [
     {
         'identifier': 'Face Up',
         'key': 'damage_type_face_up',
+        'damage_type_id': 2,
         'localization_identifier': 'damage_type_face_up_name',
         'localization_key': 'loc_damage_type_face_up_name',
         'localization_english': 'Face Up',
@@ -115,6 +123,7 @@ damage_types = [
     {
         'identifier': 'Face Down',
         'key': 'damage_type_face_down',
+        'damage_type_id': 3,
         'localization_identifier': 'damage_type_face_down_name',
         'localization_key': 'loc_damage_type_face_down_name',
         'localization_english': 'Face Down',
@@ -125,6 +134,7 @@ equipment_types = [
     {
         'identifier': 'Head',
         'key': 'equipment_type_head',
+        'part_id': 1,
         'localization_identifier': 'equipment_type_head_name',
         'localization_key': 'loc_equipment_type_head_name',
         'localization_english': 'Head',
@@ -133,6 +143,7 @@ equipment_types = [
     {
         'identifier': 'Chest',
         'key': 'equipment_type_chest',
+        'part_id': 2,
         'localization_identifier': 'equipment_type_chest_name',
         'localization_key': 'loc_equipment_type_chest_name',
         'localization_english': 'Chest',
@@ -141,6 +152,7 @@ equipment_types = [
     {
         'identifier': 'Arms',
         'key': 'equipment_type_arms',
+        'part_id': 3,
         'localization_identifier': 'equipment_type_arms_name',
         'localization_key': 'loc_equipment_type_arms_name',
         'localization_english': 'Arms',
@@ -149,6 +161,7 @@ equipment_types = [
     {
         'identifier': 'Legs',
         'key': 'equipment_type_legs',
+        'part_id': 4,
         'localization_identifier': 'equipment_type_legs_name',
         'localization_key': 'loc_equipment_type_legs_name',
         'localization_english': 'Legs',
@@ -251,6 +264,7 @@ def rarity_forwards(apps, schema_editor):
         Rarity.objects.create(
             identifier=r['identifier'],
             key=r['key'],
+            rarity_json_id=r['rarity_json_id'],
             color_start=r['color_start'],
             color_end=r['color_end'],
             name=Localization.objects.get(key=r['localization_key']),
@@ -284,6 +298,7 @@ def damage_type_forwards(apps, schema_editor):
         DamageType.objects.create(
             identifier=dt['identifier'],
             key=dt['key'],
+            damage_type_id=dt['damage_type_id'],
             name=Localization.objects.get(key=dt['localization_key']),
         )
 
@@ -299,6 +314,7 @@ def equipment_type_forwards(apps, schema_editor):
         EquipmentType.objects.create(
             identifier=et['identifier'],
             key=et['key'],
+            part_id=et['part_id'],
             name=Localization.objects.get(key=et['localization_key']),
         )
 

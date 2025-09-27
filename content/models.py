@@ -21,6 +21,20 @@ class LocalizedField(models.OneToOneField):
         kwargs.setdefault("to", Localization)
         super().__init__(*args, **kwargs)
 
+def _get_related_one_to_one(instance, related_name):        
+        related_object = getattr(instance, related_name)
+        result = related_object.to_dict_item()
+        return result
+
+def _get_related_objects(instance, related_name, *select_related_fields, sort_lambda_key=None, reversed=False):
+    related_objects = getattr(instance, related_name)
+
+    result = [related_instance.to_dict_item() for related_instance in related_objects.select_related(*select_related_fields)]
+
+    if sort_lambda_key:
+        result.sort(key=lambda item: item[sort_lambda_key], reverse=reversed)
+
+    return result
 
 class BaseModel(models.Model):
     prefix = ''
@@ -122,22 +136,14 @@ class BaseModel(models.Model):
         """
         Devuelve la instancia de un modelo relacionado por related_name en un 1 to 1.
         """
-        related_object = getattr(self, related_name)
-        result = related_object.to_dict_item()
-        return result
+        return _get_related_one_to_one(self, related_name)
 
     def get_related_objects(self, related_name, *select_related_fields, sort_lambda_key=None, reversed=False):
         """
         Devuelve todas las intancias de un modelo relacionado por related_name en M2M o FK.
         """
-        related_objects = getattr(self, related_name)
+        return _get_related_objects(self, related_name, *select_related_fields, sort_lambda_key=sort_lambda_key, reversed=reversed)
         
-        result = [related_instance.to_dict_item() for related_instance in related_objects.select_related(*select_related_fields)]
-
-        if sort_lambda_key:
-            result.sort(key=lambda item: item[sort_lambda_key], reverse=reversed)
-
-        return result
     
 class Localization(BaseModel):
     prefix = 'loc_'
@@ -255,6 +261,7 @@ class QuestObjective(BaseModel):
 class Rarity(BaseModel):
     prefix = 'rarity_'
     name = LocalizedField(related_name='rarity_name', on_delete=models.CASCADE)
+    rarity_json_id = models.IntegerField(default=0, validators=[MinValueValidator(0)], unique=True)
     color_start = models.CharField(
         max_length=7,
         default="#FFFFFF",
@@ -271,11 +278,143 @@ class Rarity(BaseModel):
     def to_dict(cls):
         return super().to_dict(None, [Rarity.name])
 
+class ItemAttributes(models.Model):
+    item = models.OneToOneField("Item", on_delete=models.CASCADE, related_name="itemattributes_item")
+
+    def __str__(self):
+        return self.item.key
+
+    # Items
+    flat_physical_damage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+    flat_magical_damage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+    armor_physical_resistance = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    armor_magical_resistance = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+
+    # Timing
+    cooldown = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+    duration = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+
+    # Costs
+    cost_health = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+    cost_mana = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+    cost_stamina = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+
+    # Gives
+    give_health = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+    give_mana = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+    give_stamina = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+
+    # Buffs
+    buff_health_percent = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    buff_mana_percent = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    buff_stamina_percent = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    buff_physical_damage_percent = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    buff_magical_damage_percent = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    buff_stamina_regeneration_percent = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+
+    # Nerfs
+    nerf_physical_damage_percent = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    nerf_magical_damage_percent = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    nerf_extra_physical_damage_received_percent = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    nerf_extra_magical_damage_received_percent = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+
+    def to_dict_item(self):
+        return {
+            "Cooldown": {
+                "AttType": 1,
+                "Value": self.cooldown
+            },
+            "Duration": {
+                "AttType": 2,
+                "Value": self.duration
+            },
+            "Flat_PhysicalDamage": {
+                "AttType": 3,
+                "Value": self.flat_physical_damage
+            },
+            "Flat_MagicalDamage": {
+                "AttType": 4,
+                "Value": self.flat_magical_damage
+            },
+            "Armor_PhysicalResistance": {
+                "AttType": 5,
+                "Value": self.armor_physical_resistance
+            },
+            "Armor_MagicalResistance": {
+                "AttType": 6,
+                "Value": self.armor_magical_resistance
+            },
+            "Cost_Health": {
+                "AttType": 7,
+                "Value": self.cost_health
+            },
+            "Cost_Mana": {
+                "AttType": 8,
+                "Value": self.cost_mana
+            },
+            "Cost_Stamina": {
+                "AttType": 9,
+                "Value": self.cost_stamina
+            },
+            "Give_Health": {
+                "AttType": 10,
+                "Value": self.give_health
+            },
+            "Give_Mana": {
+                "AttType": 11,
+                "Value": self.give_mana
+            },
+            "Give_Stamina": {
+                "AttType": 12,
+                "Value": self.give_stamina
+            },
+            "Buff_HealthPercent": {
+                "AttType": 13,
+                "Value": self.buff_health_percent
+            },
+            "Buff_ManaPercent": {
+                "AttType": 14,
+                "Value": self.buff_mana_percent
+            },
+            "Buff_StaminaPercent": {
+                "AttType": 15,
+                "Value": self.buff_stamina_percent
+            },
+            "Buff_PhysicalDamagePercent": {
+                "AttType": 16,
+                "Value": self.buff_physical_damage_percent
+            },
+            "Buff_MagicalDamagePercent": {
+                "AttType": 17,
+                "Value": self.buff_magical_damage_percent
+            },
+            "Buff_StaminaRegenerationPercent": {
+                "AttType": 18,
+                "Value": self.buff_stamina_regeneration_percent
+            },
+            "Nerf_PhysicalDamagePercent": {
+                "AttType": 19,
+                "Value": self.nerf_physical_damage_percent
+            },
+            "Nerf_MagicalDamagePercent": {
+                "AttType": 20,
+                "Value": self.nerf_magical_damage_percent
+            },
+            "Nerf_ExtraPhysicalDamageReceivedPercent": {
+                "AttType": 21,
+                "Value": self.nerf_extra_physical_damage_received_percent
+            },
+            "Nerf_ExtraMagicalDamageReceivedPercent": {
+                "AttType": 22,
+                "Value": self.nerf_extra_magical_damage_received_percent
+            }
+        }
+
 class ItemTypes(models.TextChoices):
     WEAPON = 'weapon', 'Weapon'
     EQUIPMENT = 'equipment', 'Equipment'
     CONSUMABLE = 'consumable', 'Consumable'
-    QUEST = 'quest', 'Quest Item'
+    QUEST = 'quest_item', 'Quest Item'
 
 class Item(BaseModel):
     prefix = 'item_'
@@ -319,32 +458,29 @@ class Item(BaseModel):
         )
     
     def to_dict_item(self):
-        # if self.type == ItemTypes.CONSUMABLE:
-        #     item_subtype = self.get_related_one_to_one(related_name="basic_dialogue")
+        if self.type == ItemTypes.CONSUMABLE:
+            item_subtype = self.get_related_one_to_one(related_name="consumable_item")
         
-        # elif self.type == ItemTypes.WEAPON:
-        #     item_subtype = self.get_related_one_to_one(related_name="quest_prompt_dialogue")
+        elif self.type == ItemTypes.WEAPON:
+            item_subtype = self.get_related_one_to_one(related_name="weapon_item")
 
-        # elif self.type == ItemTypes.EQUIPMENT:
-        #     item_subtype = self.get_related_one_to_one(related_name="quest_end_dialogue")
+        elif self.type == ItemTypes.EQUIPMENT:
+            item_subtype = self.get_related_one_to_one(related_name="equipment_item")
 
-        # elif self.type == ItemTypes.QUEST:
-        #     item_subtype = self.get_related_one_to_one(related_name="quest_end_dialogue")
+        elif self.type == ItemTypes.QUEST:
+            item_subtype = self.get_related_one_to_one(related_name="quest_item")
 
         return {
             "ItemData": {
                 "ID": self.key,
                 "NameKey": self.name.key,
                 "DescriptionKey": self.description.key,
-                "Rarity": self.rarity.key,
+                "Rarity": self.rarity.rarity_json_id,
                 "Value": self.value,
                 "Icon": self.icon_path,
-                "Attributes": {
-                    "asd":"aSD",
-                }
+                "Attributes": self.get_related_one_to_one(related_name="itemattributes_item")
             } 
-        } 
-    # | item_subtype
+        } | item_subtype
 
 class ItemSubtype(models.Model):
     type = None
@@ -394,30 +530,11 @@ class Consumable(ItemSubtype):
     item = models.OneToOneField(Item, on_delete=models.CASCADE, related_name="consumable_item")
 
     is_single_effect = models.BooleanField(default=True)
-    cooldown = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
     
-    effect_Duration =  models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
-    
-    physical_Resistance_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    magical_resistance_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    
-    heal_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    mana_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    stamina_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    
-    buff_physical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    buff_magical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    buff_stamina_regen_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    
-    nerf_physical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    nerf_magical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    
-    extra_physical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    extra_magical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    
-    give_flat_health = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
-    give_flat_mana = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
-    give_flat_stamina = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+    def to_dict_item(self):
+        return {
+            "SingleEffect": self.is_single_effect,
+        }
 
 class WeaponType(BaseModel):
     prefix = "weapontype_"
@@ -430,6 +547,7 @@ class WeaponType(BaseModel):
 class DamageType(BaseModel):
     prefix = "damagetype_"
     name = LocalizedField(related_name='damage_type_name', on_delete=models.CASCADE)
+    damage_type_id = models.IntegerField(default=0, validators=[MinValueValidator(0)], unique=True)
 
     @classmethod
     def to_dict(cls):
@@ -439,32 +557,25 @@ class AttackSequence(BaseModel):
     #TODO: Revisar si hay una lista fija de secuencias.
     prefix ="attack_sequence_"
 
+    def to_dict_item(self):
+        return self.key
+
 class Weapon(ItemSubtype):
     type = ItemTypes.WEAPON
     item = models.OneToOneField(Item, on_delete=models.CASCADE, related_name="weapon_item")
+    
     weapon_type = models.ForeignKey(WeaponType, related_name='weapon_type', on_delete=models.PROTECT) 
     damage_type = models.ForeignKey(DamageType, related_name='damage_type', on_delete=models.PROTECT)
 
     attack_sequence = models.ManyToManyField(AttackSequence, related_name='weapons', blank=True)
 
-    prefab = models.TextField(null=True, blank=True, default="")
     poise_break_force = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
-    flat_physical_damage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
-    flat_magical_damage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
-    physical_resistance_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    magical_resistance_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_health_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_mana_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_stamina_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_physical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_magical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_stamina_regen_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    nerf_physical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    nerf_magical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    extra_physical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    extra_magical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    attack_stamina_cost = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
 
+    physical_damage_absorption_while_blocking = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+    magical_damage_absorption_while_blocking = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
+
+    prefab = models.TextField(null=True, blank=True, default="")
+    
     def to_dict(self):
         fields = super().to_dict(Weapon.weapon_type, Weapon.damage_type)
 
@@ -473,13 +584,29 @@ class Weapon(ItemSubtype):
 
         return fields
 
+    def to_dict_item(self):
+        return {
+            "AttackSequence": sorted(_get_related_objects(self, "attack_sequence")),
+            "DamageType": self.damage_type.damage_type_id,
+            "PoiseBreakForce": self.poise_break_force,
+            "PhysicalDamageAbsorptionWhileBlocking": self.physical_damage_absorption_while_blocking,
+            "MagicalDamageAbsorptionWhileBlocking": self.magical_damage_absorption_while_blocking,
+            "Prefab": self.prefab
+        }
+
 class EquipmentType(BaseModel):
     prefix = "equipmenttype_"
     name = LocalizedField(related_name='equipment_type_name', on_delete=models.CASCADE)
+    part_id = models.IntegerField(default=1, validators=[MinValueValidator(1)], unique=True)
 
     @classmethod
     def to_dict(cls):
         return super().to_dict(None, [EquipmentType.name])
+    
+    def to_dict_item(self):
+        return {
+            "Part": self.part_id,
+        }
 
 class Equipment(ItemSubtype):
     type = ItemTypes.EQUIPMENT
@@ -488,28 +615,22 @@ class Equipment(ItemSubtype):
     equipment_type = models.ForeignKey(EquipmentType, related_name='equipment_type', on_delete=models.PROTECT)
 
     prefab = models.TextField(null=True, blank=True, default="")
-    flat_physical_damage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
-    flat_magical_damage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
-    physical_resistance_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    magical_resistance_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_health_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_mana_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_stamina_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_physical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_magical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    buff_stamina_regen_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    nerf_physical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    nerf_magical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    extra_physical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    extra_magical_damage_percentage = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0), MaxValueValidator(100)]) 
-    stamina_cost = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
 
     def to_dict(self):
         return super().to_dict(Equipment.equipment_type)
 
+    def to_dict_item(self):
+        return {
+            "Part": self.equipment_type.part_id,
+            "Prefab": self.prefab,
+        }
+
 class QuestItem(ItemSubtype):
     type = ItemTypes.QUEST
     item = models.OneToOneField(Item, on_delete=models.CASCADE, related_name="quest_item")
+
+    def to_dict_item(self):
+        return {}
 
 class LoadingScreenMessage(BaseModel):
     prefix = 'loading_screen_msg_'
@@ -533,7 +654,6 @@ class POI(BaseModel):
     show_at_start = models.BooleanField(default=False)
     show_notification = models.BooleanField(default=True)
 
-    #TODO: agregar triggers a POI
     trigger_conditions = models.ManyToManyField('Condition', related_name='poi_conditions_to_trigger',blank=True)
 
     min_bounds_x = models.FloatField(null=False, blank=False, default=0.0)
@@ -705,6 +825,12 @@ class DialogItemsRequired(models.Model):
     def __str__(self):
         return f'Dialogue: {self.dialogue.key} - Item: {self.item.key} - Amount: {self.amount}'
 
+    def to_dict_item(self):
+        return {
+            "ID": self.item.key,
+            "Quantity": self.amount,
+        }
+
 class DialogItemsToRemove(models.Model):
     dialogue = models.ForeignKey('Dialogue', on_delete=models.CASCADE)
     item = models.ForeignKey(Item, on_delete=models.CASCADE)
@@ -713,6 +839,12 @@ class DialogItemsToRemove(models.Model):
     def __str__(self):
         return f'Dialogue: {self.dialogue.key} - Item: {self.item.key} - Amount: {self.amount}' 
 
+    def to_dict_item(self):
+        return {
+            "ID": self.item.key,
+            "Quantity": self.amount,
+        }
+
 class DialogItemsToGive(models.Model):
     dialogue = models.ForeignKey('Dialogue', on_delete=models.CASCADE)
     item = models.ForeignKey(Item, on_delete=models.CASCADE)
@@ -720,6 +852,12 @@ class DialogItemsToGive(models.Model):
 
     def __str__(self):
         return f'Dialogue: {self.dialogue.key} - Item: {self.item.key} - Amount: {self.amount}' 
+
+    def to_dict_item(self):
+        return {
+            "ID": self.item.key,
+            "Quantity": self.amount,
+        }
 
 class DialogueTypes(models.TextChoices):
     BASIC = 'basic', 'Basic'
@@ -808,10 +946,10 @@ class Dialogue(BaseModel):
                 "NotAppearConditions": self.get_related_objects(related_name="no_appear_conditions"),
                 "TriggerCompletitionsIDs": self.get_related_objects(related_name="trigger_id_conditions"),
                 "TriggerDiaryEntriesIDs": self.get_related_objects(related_name="trigger_diary_conditions"),
-                "RequiredItems": []
+                "RequiredItems": self.get_related_objects("dialogitemsrequired_set", "item"),
             },
-            "RemoveItems": [],
-            "AddItems": [],
+            "RemoveItems": self.get_related_objects("dialogitemstoremove_set", "item"),
+            "AddItems": self.get_related_objects("dialogitemstogive_set", "item"),
 
         } | dialog_subtype
 
@@ -900,7 +1038,7 @@ class DialogueSequence(BaseModel):
     prefix = 'dialoguesequence_'
 
     def to_dict_item(self):
-        return self.get_related_objects("items",sort_lambda_key="Index")
+        return self.get_related_objects(related_name="items", sort_lambda_key="Index")
 
 class Basic(DialogueSubtype):
     type = DialogueTypes.BASIC
@@ -978,7 +1116,7 @@ class DiaryPage(BaseModel):
     
     @classmethod
     def to_dict2(cls):
-        return super().to_dict2(DiaryPages=[DiaryPage.name])
+        return super().to_dict2("DiaryPages", DiaryPage.name)
 
     def to_dict_item(self):
         return {

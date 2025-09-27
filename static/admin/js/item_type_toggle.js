@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
         weapon: document.getElementById('weapon_item-group'),
         equipment: document.getElementById('equipment_item-group'),
         consumable: document.getElementById('consumable_item-group'),
-        quest: document.getElementById('quest_item-group'),
+        quest_item: document.getElementById('quest_item-group'),
     };
 
     function setFieldRequired(container, required) {
@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     'delete': equipmentDeleteButton,
                     'add': equipmentAddButton
                 },
-                'quest': {
+                'quest_item': {
                     'delete': questitemDeleteButton,
                     'add': questitemAddButton
                 }

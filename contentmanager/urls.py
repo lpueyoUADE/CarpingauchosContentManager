@@ -21,5 +21,5 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', custom_admin_site.urls),
-] + static('/static_sprites/', document_root=settings.SPRITES_BASE_PATH) + \
-    static('/static_prefabs/', document_root=settings.PREFABS_BASE_PATH)
+] + static('/static_sprites/', document_root=settings.SPRITES_FULL_PATH) + \
+    static('/static_prefabs/', document_root=settings.PREFABS_FULL_PATH)
