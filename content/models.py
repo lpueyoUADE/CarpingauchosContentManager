@@ -338,11 +338,11 @@ class ItemAttributes(models.Model):
             },
             "Armor_PhysicalResistance": {
                 "AttType": 5,
-                "Value": self.armor_physical_resistance
+                "Value": self.armor_physical_resistance / 100
             },
             "Armor_MagicalResistance": {
                 "AttType": 6,
-                "Value": self.armor_magical_resistance
+                "Value": self.armor_magical_resistance / 100
             },
             "Cost_Health": {
                 "AttType": 7,
@@ -370,43 +370,43 @@ class ItemAttributes(models.Model):
             },
             "Buff_HealthPercent": {
                 "AttType": 13,
-                "Value": self.buff_health_percent
+                "Value": self.buff_health_percent / 100
             },
             "Buff_ManaPercent": {
                 "AttType": 14,
-                "Value": self.buff_mana_percent
+                "Value": self.buff_mana_percent / 100
             },
             "Buff_StaminaPercent": {
                 "AttType": 15,
-                "Value": self.buff_stamina_percent
+                "Value": self.buff_stamina_percent / 100
             },
             "Buff_PhysicalDamagePercent": {
                 "AttType": 16,
-                "Value": self.buff_physical_damage_percent
+                "Value": self.buff_physical_damage_percent / 100
             },
             "Buff_MagicalDamagePercent": {
                 "AttType": 17,
-                "Value": self.buff_magical_damage_percent
+                "Value": self.buff_magical_damage_percent / 100
             },
             "Buff_StaminaRegenerationPercent": {
                 "AttType": 18,
-                "Value": self.buff_stamina_regeneration_percent
+                "Value": self.buff_stamina_regeneration_percent / 100
             },
             "Nerf_PhysicalDamagePercent": {
                 "AttType": 19,
-                "Value": self.nerf_physical_damage_percent
+                "Value": self.nerf_physical_damage_percent / 100
             },
             "Nerf_MagicalDamagePercent": {
                 "AttType": 20,
-                "Value": self.nerf_magical_damage_percent
+                "Value": self.nerf_magical_damage_percent / 100
             },
             "Nerf_ExtraPhysicalDamageReceivedPercent": {
                 "AttType": 21,
-                "Value": self.nerf_extra_physical_damage_received_percent
+                "Value": self.nerf_extra_physical_damage_received_percent / 100
             },
             "Nerf_ExtraMagicalDamageReceivedPercent": {
                 "AttType": 22,
-                "Value": self.nerf_extra_magical_damage_received_percent
+                "Value": self.nerf_extra_magical_damage_received_percent / 100
             }
         }
 
@@ -426,6 +426,7 @@ class Item(BaseModel):
     value =  models.PositiveIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(10000000)])
 
     icon_path = models.TextField(null=True, blank=True, default="")
+    mesh_path = models.TextField(null=True, blank=True, default="")
 
     type = models.CharField(max_length=20, null=False, blank=False, choices=ItemTypes.choices)
 
@@ -478,6 +479,7 @@ class Item(BaseModel):
                 "Rarity": self.rarity.rarity_json_id,
                 "Value": self.value,
                 "Icon": self.icon_path,
+                "MeshPath": self.mesh_path,
                 "Attributes": self.get_related_one_to_one(related_name="itemattributes_item")
             } 
         } | item_subtype
@@ -554,11 +556,22 @@ class DamageType(BaseModel):
         return super().to_dict(None, [DamageType.name])
 
 class AttackSequence(BaseModel):
-    #TODO: Revisar si hay una lista fija de secuencias.
+    #TODO: Agregar attack sequences a la migracion.
     prefix ="attack_sequence_"
 
     def to_dict_item(self):
-        return self.key
+        return self.identifier
+
+class WeaponAttackSequence(models.Model):
+    weapon = models.ForeignKey('Weapon', on_delete=models.CASCADE)
+    attack_sequence = models.ForeignKey(AttackSequence, on_delete=models.CASCADE)
+    index = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(1000)])
+
+    def __str__(self):
+        return f'Weapon: {self.weapon} - attack_sequence: {self.attack_sequence.key} - Index: {self.index}'
+
+    def to_dict_item(self):
+        return self.attack_sequence.identifier
 
 class Weapon(ItemSubtype):
     type = ItemTypes.WEAPON
@@ -567,7 +580,7 @@ class Weapon(ItemSubtype):
     weapon_type = models.ForeignKey(WeaponType, related_name='weapon_type', on_delete=models.PROTECT) 
     damage_type = models.ForeignKey(DamageType, related_name='damage_type', on_delete=models.PROTECT)
 
-    attack_sequence = models.ManyToManyField(AttackSequence, related_name='weapons', blank=True)
+    attack_sequence = models.ManyToManyField(AttackSequence, related_name='weapons', through=WeaponAttackSequence, blank=True)
 
     poise_break_force = models.FloatField(null=False, blank=False, default=0, validators=[MinValueValidator(0)])
 
@@ -586,7 +599,7 @@ class Weapon(ItemSubtype):
 
     def to_dict_item(self):
         return {
-            "AttackSequence": sorted(_get_related_objects(self, "attack_sequence")),
+            "AttackSequence": _get_related_objects(self, "weaponattacksequence_set", "attack_sequence"),
             "DamageType": self.damage_type.damage_type_id,
             "PoiseBreakForce": self.poise_break_force,
             "PhysicalDamageAbsorptionWhileBlocking": self.physical_damage_absorption_while_blocking,
@@ -813,9 +826,10 @@ class Ability(BaseModel):
  
 class Condition(BaseModel):
     prefix = 'condition_'
+    use_identifier =  models.BooleanField(default=False, help_text="si es True, se usa la Key Al exportar a JSON. Caso contrario se usa identifier.")
 
     def to_dict_item(self):
-        return self.key
+        return self.identifier if self.use_identifier else self.key
 
 class DialogItemsRequired(models.Model):
     dialogue = models.ForeignKey('Dialogue', on_delete=models.CASCADE)
@@ -861,8 +875,8 @@ class DialogItemsToGive(models.Model):
 
 class DialogueTypes(models.TextChoices):
     BASIC = 'basic', 'Basic'
-    QUEST_PROMPT = 'quest_prompt', 'Quest Prompt'
-    QUEST_END = 'quest_end', 'Quest End'
+    QUEST_PROMPT = 'quest_prompt', 'Quest_Prompt'
+    QUEST_END = 'quest_end', 'Quest_End'
 
 
 def get_item_amount(items_queryset):
@@ -894,7 +908,7 @@ class Dialogue(BaseModel):
     remove_items = models.ManyToManyField(Item, through=DialogItemsToRemove, related_name='removed_by_dialogues', blank=True)
     give_items = models.ManyToManyField(Item, through=DialogItemsToGive, related_name='given_by_dialogues', blank=True)
 
-
+    #TODO: Crear Dialogos prompt y end al crear una quest.
     @classmethod
     def process_subtype(cls, subtype, dialogue_element, data):
         data['npc'] = dialogue_element.npc.key
@@ -1076,8 +1090,8 @@ class QuestPrompt(DialogueSubtype):
         return {
             "QuestID": self.quest.key,
             "Dialogue": self.get_related_one_to_one("text"),
-            "AcceptQuestDialogue": self.get_related_one_to_one("deny_text"),
-            "DeclineQuestDialogue": self.get_related_one_to_one("acccept_text"),
+            "AcceptQuestDialogue": self.get_related_one_to_one("acccept_text"),
+            "DeclineQuestDialogue": self.get_related_one_to_one("deny_text"),
         }
 
 class QuestEnd(DialogueSubtype):
@@ -1152,6 +1166,7 @@ class DiaryEntry(BaseModel):
 # Set Plural names
 models_list = [
     (Item, 'Items'),
+    (Weapon, 'Weapons'),
     (NPC, 'NPCs'),
     (Quest, 'Quests'),
     (AbilityTree, 'Ability Trees'),
@@ -1177,7 +1192,6 @@ models_list = [
     (Localization, 'Localizations'),
     (Rarity, 'Rarities'), 
     # (Consumable, 'Consumables'),
-    # (Weapon, 'Weapons'),
     # (Equipment, 'Equipment'), 
     # (QuestItem, 'Quest Items'), 
     # (Basic, 'Basic Dialogues'),

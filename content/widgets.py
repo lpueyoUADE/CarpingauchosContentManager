@@ -3,6 +3,7 @@ from django import forms
 from django.conf import settings
 
 DEFAULT_PREFAB_IMAGE = "/static/admin/images/default_prefab.png" 
+EMPTY_IMAGE = "/static/admin/images/empty.png"
 
 def _get_file_choices(partial_base_path, *valid_file_formats):
     base_path = settings.ABSOLUTE_BASE_PATH + partial_base_path
@@ -10,6 +11,7 @@ def _get_file_choices(partial_base_path, *valid_file_formats):
         return []
 
     choices = []
+
     for root, dirs, files in os.walk(base_path):
         for file in files:
             if file.lower().endswith(valid_file_formats):
@@ -18,7 +20,8 @@ def _get_file_choices(partial_base_path, *valid_file_formats):
                 unity_path = (partial_base_path + rel_path).replace("\\", "/")
                 choices.append((unity_path, rel_path))
 
-    return sorted(choices, key=lambda x: x[1])
+    # Opción vacia siempre como primer item
+    return [("", "Ninguno")] + sorted(choices, key=lambda x: x[1])
 
 def get_sprite_choices():
     return _get_file_choices(settings.SPRITES_BASE_PATH, '.png')
@@ -30,9 +33,11 @@ class FileGridWidget(forms.Select):
     static_files_path = ''
     files_partial_base_path = ''
     template_name = 'widgets/file_grid.html'
+    
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)
         options = []
+
         for group_name, group_choices, index in context['widget']['optgroups']:
             for option in group_choices:
                 unity_path = option['value']
@@ -42,6 +47,9 @@ class FileGridWidget(forms.Select):
                 # Para archivos .prefab, usar imagen por defecto
                 if rel_path.endswith('.prefab'):
                     img_url = DEFAULT_PREFAB_IMAGE
+                
+                elif rel_path == 'Ninguno':
+                    img_url = EMPTY_IMAGE
                 else:
                     img_url = f"/{self.static_files_path}/{rel_path}".replace('\\', '/')
 

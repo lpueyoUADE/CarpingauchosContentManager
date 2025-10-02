@@ -1,4 +1,4 @@
-function isEditingForm() {
+function isEditingDialogueForm() {
     const path = window.location.pathname;
     return path.includes('dialogue') && path.includes('change');
 }
@@ -13,7 +13,7 @@ function updateKey(identifierInput, keyInput, npcSelect, typeSelect) {
 
     const npc = npcSelect.options[npcSelect.selectedIndex].text.split("npc_")[1];
 
-    const typeValue = isEditingForm() ? typeSelect.innerText : typeSelect.value;
+    const typeValue = isEditingDialogueForm() ? typeSelect.innerText : typeSelect.value;
     keyInput.value = prefix + typeValue.toLowerCase() + "_" + npc + "_" + slug;
 
 }
@@ -30,7 +30,7 @@ function updateAddRelatedLink(addRelatedLink, keyValue, suffix) {
 document.addEventListener('DOMContentLoaded', function () {
     const identifierInput = document.querySelector('#id_identifier');
     const keyInput = document.querySelector('#id_key');
-    const typeSelect = isEditingForm() ? document.querySelector('.field-type .readonly') : document.querySelector('#id_type');
+    const typeSelect = isEditingDialogueForm() ? document.querySelector('.field-type .readonly') : document.querySelector('#id_type');
     const npcSelect = document.querySelector('#id_npc');
 
     const updateRelatedLinks = () => {

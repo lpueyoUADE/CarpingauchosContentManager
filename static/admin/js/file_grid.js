@@ -20,14 +20,26 @@ function initGrids() {
         // Click en cada file
         items.forEach(item => {
             item.addEventListener('click', function() {
+                // ¿ya está seleccionado?
+            if (item.classList.contains('selected')) {
+                // deseleccionar
+                item.classList.remove('selected');
+                selectElement.value = "";
+                selectedImg.src = "";
+                selectedName.textContent = "";
+            } else {
+                // limpiar selección previa
                 container.querySelectorAll('.grid-item').forEach(el => el.classList.remove('selected'));
+
+                // marcar nuevo
                 item.classList.add('selected');
                 selectElement.value = item.dataset.value;
 
                 // Actualizar panel lateral
                 selectedImg.src = item.dataset.img;
                 selectedName.textContent = item.dataset.name;
-            });
+            }
+        });
             // Filtro por nombre
             filterInput.addEventListener('input', function() {
                 const query = this.value.toLowerCase();

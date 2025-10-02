@@ -204,6 +204,40 @@ ability_types = [
     },
 ]
 
+#TODO: Agregar attack sequences.
+"""
+Sword_Swing_01
+Sword_Swing_02
+Sword_Swing_03
+Sword_Swing_04
+Sword_Swing_05
+Sword_Swing_06
+Sword_Swing_07
+Sword_Swing_08
+Sword_Swing_09
+Sword_Swing_10
+Melee_Punch_01
+Melee_Punch_02
+Melee_Punch_03
+Melee_Punch_04
+Melee_Punch_05
+Melee_Punch_06
+Melee_Punch_07
+Melee_Punch_08
+Melee_Punch_09
+Melee_Punch_10
+Melee_Kick_01
+Melee_Kick_02
+Melee_Kick_03
+Melee_Kick_04
+Melee_Kick_05
+Melee_Kick_06
+Melee_Kick_07
+Melee_Kick_08
+Melee_Kick_09
+Melee_Kick_10
+"""
+
 def localization_forwards(apps, schema_editor):
     Localization = apps.get_model('content', 'Localization')
 

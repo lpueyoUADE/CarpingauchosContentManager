@@ -4,9 +4,9 @@
 {% block content %}
     <h2>ACTIONS</h2>
         <div class="actions">
-            <a id="FullJson" class="export-button" href="{% url 'admin:download-full-json' %}" title="Descargar un único JSON con todas las entidades">
+            <!-- <a id="FullJson" class="export-button" href="{% url 'admin:download-full-json' %}" title="Descargar un único JSON con todas las entidades">
                 Descargar full JSON
-            </a>
+            </a> -->
             <a class="export-button" href="{% url 'admin:download-quests' %}" title="Descargar JSON de Quests">
                 Descargar Quests
             </a>
@@ -18,6 +18,9 @@
             </a>
             <a class="export-button" href="{% url 'admin:download-items' %}" title="Descargar JSON de Items">
                 Descargar Items
+            </a>
+            <a id="FullCSV" class="export-button" href="{% url 'admin:download-localizations' %}" title="Descargar JSON de Todas las Localizations">
+                JSON de Localizations
             </a>
         </div>
     </table>
@@ -56,7 +59,7 @@
                 background-color: green;
                 transition: 0.2s all;
 
-                &#FullJson {
+                &#FullJson, &#FullCSV {
                    background-color: crimson;
                 }
                 &:hover, &#FullJson:hover {

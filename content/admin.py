@@ -1,8 +1,9 @@
+import csv
 from django import forms
 from django.contrib import admin, messages
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from django.db.models import Q, OneToOneField, ForeignKey, CASCADE
+from django.db.models import Q, OneToOneField, ForeignKey, FloatField, CASCADE
 from django.utils.html import format_html
 from django.urls import path
 from django.http import HttpResponseRedirect, HttpResponse
@@ -26,6 +27,7 @@ from .models import (
     DamageType,
     EquipmentType,
     AttackSequence,
+    WeaponAttackSequence,
     LoadingScreenMessage,
     POI,
     Projectile,
@@ -75,6 +77,7 @@ class CustomAdminSite(admin.AdminSite):
             path("download-diary-pages/", self.admin_view(self.download_diary_pages), name="download-diary-pages"),
             path("download-dialogues/", self.admin_view(self.download_dialogues), name="download-dialogues"),
             path("download-items/", self.admin_view(self.download_items), name="download-items"),
+            path("download-localizations/", self.admin_view(self.download_localizations), name="download-localizations"),
         ]
         return custom_urls + urls
 
@@ -164,6 +167,15 @@ class CustomAdminSite(admin.AdminSite):
     
     def download_items(self, request):
         return self.donwload_template(request, Item, "Item")
+    
+    def download_localizations(self, request):
+        # Obtener queryset con TODOS los registros
+        queryset = Localization.objects.all()
+
+        # Podés pasar None o self si querés como modeladmin
+        #return export_all_csv(None, request, queryset)
+
+        return export_all_json(None, request, queryset)
 
 custom_admin_site = CustomAdminSite(name='custom_admin')
 
@@ -180,6 +192,9 @@ class BaseModelAdmin(admin.ModelAdmin):
     key_prefix = ''
 
     class Media:
+        css = {
+            'all': ('admin/css/custom_admin_filter_sidebar.css','admin/css/custom_admin_submit_row.css',)
+        }
         js = ('admin/js/auto_key.js', 'admin/js/auto_localizations.js', 'admin/js/file_grid.js')
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -324,7 +339,14 @@ class BaseModelForm(forms.ModelForm):
         if 'prefab' in self.fields:
             self.fields['prefab'] = forms.ChoiceField(
                 choices=get_prefab_choices(),
-                widget=PrefabGridWidget()
+                widget=PrefabGridWidget(),
+            )
+
+        if 'mesh_path' in self.fields:
+            self.fields['mesh_path'] = forms.ChoiceField(
+                choices=get_prefab_choices(),
+                widget=PrefabGridWidget(),
+                required=False,
             )
 
     class Meta:
@@ -374,12 +396,196 @@ class LocalizationForm(BaseModelForm):
         self.fields['identifier'].widget.attrs['readonly'] = readonly
         self.fields['identifier'].widget.attrs['data-key-prefix'] = self.key_prefix
 
+class ModelNameFilter(admin.SimpleListFilter):
+    title = "Model"
+    parameter_name = "model_name"
+    model_admin = None
+
+    def lookups(self, request, model_admin):
+        # Obtener valores únicos de model_name dinámicamente
+        self.model_admin = model_admin
+        qs = model_admin.get_queryset(request)
+        values = set()
+        for obj in qs:
+            instance = model_admin.get_related_instance(obj)
+            if instance:
+                values.add(instance._meta.model_name)
+        return [(v, v.capitalize()) for v in sorted(values)]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            # Filtrar queryset por el model_name elegido
+            ids = []
+            for obj in queryset:
+                instance = self.model_admin.get_related_instance(obj)
+                if instance and instance._meta.model_name == self.value():
+                    ids.append(obj.id)
+            return queryset.filter(id__in=ids)
+        return queryset
+
+def export_csv(modeladmin, request, queryset):
+    """
+    Exporta a CSV respetando filtros + selección.
+    """
+
+    # Esto es por si al filtrar, selecciono modelos de más de un modelo.
+    # se va a notar porque el nombre va incluir todos los model_names.
+    # Normalmente deberia ser 1 solo.
+    model_names_set = set()
+
+    for obj in queryset:
+        instance = modeladmin.get_related_instance(obj)
+        if instance:
+            model_names_set.add(instance._meta.model_name)
+
+    # Convertimos el set en string con "_"
+    model_names = "_".join(sorted(model_names_set))
+
+    # Obtener lo que se escribió en la barra de búsqueda
+    search_text = request.GET.get("q", "").strip()
+
+    # Sanitizar para que sea válido como nombre de archivo
+    import re
+    if search_text:
+        safe_search_text = re.sub(r'[^a-zA-Z0-9_-]+', "_", search_text)
+        filename = f"Localizations_{model_names}s_{safe_search_text}.csv"
+    else:
+        filename = f"Localizations_{model_names}s.csv"
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    # Headers
+    writer.writerow(['Key', 'English(en)', 'Spanish(es)'])
+
+    for  obj in queryset:
+        writer.writerow([obj.key, obj.english, obj.spanish])
+
+    return response
+
+supported_loc_tables = [
+    {
+        'localization_id': 'Chapters',
+        'models': [
+            'loc_diarypage_',
+            'loc_diaryentry_',
+        ],
+    },
+    {
+        'localization_id': 'Dialogues',
+        'models': [
+            'loc_dialogue_',
+            'loc_dialoguesequenceitem_',
+            'loc_dialoguesingleitem_',
+        ],
+    },
+    {
+        'localization_id': 'Items_Armor',
+        'models': ['loc_item_equipment_'],
+    },
+    {
+        'localization_id': 'Items_Consumables',
+        'models': ['loc_item_consumable_'],
+    },
+    {
+        'localization_id': 'Items_Key',
+        'models': ['loc_item_quest_item_'],
+    },
+    {
+        'localization_id': 'Items_Weapons',
+        'models': ['loc_item_weapon_'],
+    },
+    {
+        'localization_id': 'NPCs',
+        'models': ['loc_npc_'],
+    },
+    {
+        'localization_id': 'Quests',
+        'models': [
+            'loc_quest_',
+            'loc_questobjective_',
+        ],
+    },
+]
+
+def export_all_json(modeladmin, request, queryset):
+    def get_table_from_key(key: str):
+        key_lower = key.lower()
+        for table in supported_loc_tables:
+            for prefix in table['models']:
+                if key_lower.startswith(prefix):
+                    return table['localization_id']
+        return None  # ignorar entradas sin match
+
+    # Generar nombre de archivo con fecha
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    filename = f"Localizations_All_{date_str}.json"
+
+    data = []
+
+    for obj in queryset:
+        table = get_table_from_key(obj.key)
+        if table is None:
+            continue  # ignorar entradas sin match
+
+        data.append({
+            "Key": obj.key,
+            "English": getattr(obj, 'english', ''),
+            "Spanish": getattr(obj, 'spanish', ''),
+            "Table": table
+        })
+
+    response = HttpResponse(content_type='application/json')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write(json.dumps({"entries": data}, ensure_ascii=False, indent=2))
+    return response
+
+def export_all_csv(modeladmin, request, queryset):
+    def get_table_from_key(key: str):
+        key_lower = key.lower()
+        for table in supported_loc_tables:
+            for prefix in table['models']:
+                if key_lower.startswith(prefix):
+                    return table['localization_id']
+        return None  # ignorar entradas sin match
+
+    # Generar nombre de archivo con fecha
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    filename = f"Localizations_All_{date_str}.csv"
+
+    # Generar respuesta CSV
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Key', 'English(en)', 'Spanish(es)', 'Table'])
+
+    for obj in queryset:
+        table = get_table_from_key(obj.key)
+        if table is None:
+            continue  # ignorar entradas sin match
+
+        writer.writerow([
+            obj.key,
+            getattr(obj, 'english', ''),
+            getattr(obj, 'spanish', ''),
+            table
+        ])
+
+    return response
+
+export_csv.short_description = "Exportar selección a CSV"
+export_all_csv.short_description = "Exportar todo a CSV"
 @admin.register(Localization, site=custom_admin_site)
 class LocalizationAdmin(BaseModelAdmin):
     key_prefix = Localization.prefix
 
-    list_display = ('key', 'model_name', 'english', 'spanish')
+    list_display = ('identifier', 'key', 'model_name', 'english', 'spanish')
     ordering = ('key',)
+    list_filter = (ModelNameFilter,)
+    search_fields = ('identifier', 'english', 'spanish')
+    actions = [export_csv, export_all_csv] 
 
     form = LocalizationForm
 
@@ -513,7 +719,14 @@ class BaseItemInlineForm(forms.ModelForm):
         if 'prefab' in self.fields:
             self.fields['prefab'] = forms.ChoiceField(
                 choices=get_prefab_choices(),
-                widget=PrefabGridWidget()
+                widget=PrefabGridWidget(),
+            )
+        
+        if 'mesh_path' in self.fields:
+            self.fields['mesh_path'] = forms.ChoiceField(
+                choices=get_prefab_choices(),
+                widget=PrefabGridWidget(),
+                required=False,
             )
 
     def has_changed(self):
@@ -533,7 +746,7 @@ class WeaponInlineForm(BaseItemInlineForm):
 
 class EquipmentInlineForm(BaseItemInlineForm):
     class Meta:
-        model = Weapon
+        model = Equipment
         fields = '__all__'
 
 class QuestItemInlineForm(BaseItemInlineForm):
@@ -594,7 +807,10 @@ class ItemAttributesInline(admin.StackedInline):
 class ItemForm(BaseModelForm):
     class Meta(BaseModelForm.Meta):
         model = Item
-        fields = ('identifier', 'key', 'rarity', 'type', 'name', 'description', 'value', 'icon_path')
+        fields = ('identifier', 'key', 'rarity', 'type', 'name', 'description', 'value', 'icon_path', 'mesh_path')
+
+    def has_changed(self):
+        return True
 
 @admin.register(WeaponType, site=custom_admin_site)
 class WeaponTypeAdmin(BaseModelAdmin):
@@ -656,21 +872,35 @@ class AttackSequenceForm(BaseModelForm):
 class AttackSequenceAdmin(BaseModelAdmin):
     key_prefix = AttackSequence.prefix
 
+    list_display = ('identifier', 'key',)
+    ordering = ('key',)
     form = AttackSequenceForm
 
 @admin.register(Item, site=custom_admin_site)
 class ItemAdmin(BaseModelAdmin):
     key_prefix = Item.prefix
-    list_display = ('identifier', 'key', 'type', 'rarity_name', 'english_name', 'spanish_name',)
+    list_display = ('identifier', 'key', 'type', 'rarity_name', 'value', 'english_name', 'spanish_name',
+                    'flat_physical_damage', 'flat_magical_damage',
+                    'armor_physical_resistance', 'armor_magical_resistance',
+                    'cooldown', 'duration',
+                    'cost_health', 'cost_mana', 'cost_stamina',
+                    'give_health', 'give_mana', 'give_stamina', 
+                    'buff_health_percent', 'buff_mana_percent', 'buff_stamina_percent', 'buff_physical_damage_percent', 
+                    'buff_magical_damage_percent', 'buff_stamina_regeneration_percent', 
+                    'nerf_physical_damage_percent', 'nerf_magical_damage_percent', 
+                    'nerf_extra_physical_damage_received_percent', 'nerf_extra_magical_damage_received_percent',)
     ordering = ('key', 'type')
-
+    list_filter = ("type",) 
     inlines = [
-        WeaponInline, EquipmentInline, ConsumableInline, QuestItemInline, ItemAttributesInline, 
+        WeaponInline, EquipmentInline, ConsumableInline, QuestItemInline, ItemAttributesInline,
     ]
 
     form = ItemForm
 
     class Media:
+        css = {
+            'all':('admin/css/custom_admin_itemattributes_table.css',),
+        }
         js = ('admin/js/item_auto_key.js', 'admin/js/item_type_toggle.js')
 
     def get_readonly_fields(self, request, obj=None):
@@ -694,6 +924,190 @@ class ItemAdmin(BaseModelAdmin):
             )
     rarity_name.short_description = "Rarity"
     rarity_name.admin_order_field = 'rarity'
+
+    # Items
+    def flat_physical_damage(self, obj):
+        value = obj.itemattributes_item.flat_physical_damage
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def flat_magical_damage(self, obj):
+        value = obj.itemattributes_item.flat_magical_damage
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def armor_physical_resistance(self, obj):
+        value = obj.itemattributes_item.armor_physical_resistance
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def armor_magical_resistance(self, obj):
+        value = obj.itemattributes_item.armor_magical_resistance
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    # Timing
+    def cooldown(self, obj):
+        value = obj.itemattributes_item.cooldown
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def duration(self, obj):
+        value = obj.itemattributes_item.duration
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    # Costs
+    def cost_health(self, obj):
+        value = obj.itemattributes_item.cost_health
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def cost_mana(self, obj):
+        value = obj.itemattributes_item.cost_mana
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def cost_stamina(self, obj):
+        value = obj.itemattributes_item.cost_stamina
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    # Gives
+    def give_health(self, obj):
+        value = obj.itemattributes_item.give_health
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def give_mana(self, obj):
+        value = obj.itemattributes_item.give_mana
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def give_stamina(self, obj):
+        value = obj.itemattributes_item.give_stamina
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    # Buffs
+    def buff_health_percent(self, obj):
+        value = obj.itemattributes_item.buff_health_percent
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def buff_mana_percent(self, obj):
+        value = obj.itemattributes_item.buff_mana_percent
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def buff_stamina_percent(self, obj):
+        value = obj.itemattributes_item.buff_stamina_percent
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def buff_physical_damage_percent(self, obj):
+        value = obj.itemattributes_item.buff_physical_damage_percent
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def buff_magical_damage_percent(self, obj):
+        value = obj.itemattributes_item.buff_magical_damage_percent
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def buff_stamina_regeneration_percent(self, obj):
+        value = obj.itemattributes_item.buff_stamina_regeneration_percent
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    # Nerfs
+    def nerf_physical_damage_percent(self, obj):
+        value = obj.itemattributes_item.nerf_physical_damage_percent
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def nerf_magical_damage_percent(self, obj):
+        value = obj.itemattributes_item.nerf_magical_damage_percent
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def nerf_extra_physical_damage_received_percent(self, obj):
+        value = obj.itemattributes_item.nerf_extra_physical_damage_received_percent
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+    def nerf_extra_magical_damage_received_percent(self, obj):
+        value = obj.itemattributes_item.nerf_extra_magical_damage_received_percent
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            '#0F0' if value != 0 else 'initial',
+            value
+        )
+
+
 
 class RarityForm(BaseModelForm):
     class Meta(BaseModelForm.Meta):
@@ -927,7 +1341,7 @@ class ConditionForm(BaseModelForm):
 @admin.register(Condition, site=custom_admin_site)
 class ConditionAdmin(BaseModelAdmin):
     #TODO: limpiar campos y comentarios sobrantes
-    # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+    list_display = ('identifier', 'key', 'use_identifier')
 
     ordering = ('key',)
 
@@ -1004,7 +1418,7 @@ class DialogueForm(BaseModelForm):
 class DialogueAdmin(BaseModelAdmin):
     key_prefix = Dialogue.prefix
     list_display = ('identifier', 'key', 'type',)
-
+    list_filter = ("type",) 
     ordering = ('key',)
 
     inlines = [
@@ -1212,11 +1626,41 @@ class DiaryPageAdmin(BaseModelAdmin):
         return obj.name.spanish
     spanish_name.short_description = "ES"
 
+class WeaponAttackSequenceForm(BaseItemInlineForm):
+    class Meta(BaseModelForm.Meta):
+        model = WeaponAttackSequence
+        fields = '__all__'
+
+class WeaponAttackSequenceInline(admin.TabularInline):
+    model = WeaponAttackSequence
+    form = WeaponAttackSequenceForm
+    extra = 1
+
+    class Media:
+        js = ('admin/js/tabularinline_weapon_attack_sequence_index_autoincrement.js',)
+
 # Agregar para ver si los items y los subtipos se están creando bien.
-# @admin.register(Weapon, site=custom_admin_site)
-# class WeaponAdmin(admin.ModelAdmin):
-#     def has_add_permission(self, request):
-#         return False
+@admin.register(Weapon, site=custom_admin_site)
+class WeaponAdmin(admin.ModelAdmin):
+    list_display = ('identifier', 'key', 'sequence')
+    inlines = [WeaponAttackSequenceInline,]
+
+    def has_add_permission(self, request):
+        return False
+    
+    def identifier(self, obj):
+        return obj.item.identifier
+    identifier.short_description = "Identifier"
+
+    def key(self, obj):
+        return obj.item.key
+    key.short_description = "Key"
+
+    def sequence(self, obj):
+        sequences = obj.weaponattacksequence_set.all().order_by("index")
+        return " | ".join(
+            [f"{seq.attack_sequence.identifier}" for seq in sequences]
+        )
 
 # @admin.register(Consumable, site=custom_admin_site)
 # class ConsumablenAdmin(admin.ModelAdmin):
@@ -1233,10 +1677,10 @@ class DiaryPageAdmin(BaseModelAdmin):
 #     def has_add_permission(self, request):
 #         return False
 
-@admin.register(ItemAttributes, site=custom_admin_site)
-class ItemAttributesAdmin(admin.ModelAdmin):
-    def has_add_permission(self, request):
-        return False
+# @admin.register(ItemAttributes, site=custom_admin_site)
+# class ItemAttributesAdmin(admin.ModelAdmin):
+#     def has_add_permission(self, request):
+#         return False
 
 #TODO: Arbol de dependencias para las conditions
 # Es decir

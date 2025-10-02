@@ -1,0 +1,5 @@
+nav#changelist-filter {
+    position: sticky;
+    top: 15px;
+    flex: 0 0 150px;
+}
