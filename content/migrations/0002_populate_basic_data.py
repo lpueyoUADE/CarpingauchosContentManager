@@ -204,39 +204,38 @@ ability_types = [
     },
 ]
 
-#TODO: Agregar attack sequences.
-"""
-Sword_Swing_01
-Sword_Swing_02
-Sword_Swing_03
-Sword_Swing_04
-Sword_Swing_05
-Sword_Swing_06
-Sword_Swing_07
-Sword_Swing_08
-Sword_Swing_09
-Sword_Swing_10
-Melee_Punch_01
-Melee_Punch_02
-Melee_Punch_03
-Melee_Punch_04
-Melee_Punch_05
-Melee_Punch_06
-Melee_Punch_07
-Melee_Punch_08
-Melee_Punch_09
-Melee_Punch_10
-Melee_Kick_01
-Melee_Kick_02
-Melee_Kick_03
-Melee_Kick_04
-Melee_Kick_05
-Melee_Kick_06
-Melee_Kick_07
-Melee_Kick_08
-Melee_Kick_09
-Melee_Kick_10
-"""
+attack_sequences = [
+    {'identifier': 'Sword_Swing_01', 'key': 'attack_sequence_sword_swing_01'},
+    {'identifier': 'Sword_Swing_02', 'key': 'attack_sequence_sword_swing_02'},
+    {'identifier': 'Sword_Swing_03', 'key': 'attack_sequence_sword_swing_03'},
+    {'identifier': 'Sword_Swing_04', 'key': 'attack_sequence_sword_swing_04'},
+    {'identifier': 'Sword_Swing_05', 'key': 'attack_sequence_sword_swing_05'},
+    {'identifier': 'Sword_Swing_06', 'key': 'attack_sequence_sword_swing_06'},
+    {'identifier': 'Sword_Swing_07', 'key': 'attack_sequence_sword_swing_07'},
+    {'identifier': 'Sword_Swing_08', 'key': 'attack_sequence_sword_swing_08'},
+    {'identifier': 'Sword_Swing_09', 'key': 'attack_sequence_sword_swing_09'},
+    {'identifier': 'Sword_Swing_10', 'key': 'attack_sequence_sword_swing_10'},
+    {'identifier': 'Melee_Punch_01', 'key': 'attack_sequence_melee_punch_01'},
+    {'identifier': 'Melee_Punch_02', 'key': 'attack_sequence_melee_punch_02'},
+    {'identifier': 'Melee_Punch_03', 'key': 'attack_sequence_melee_punch_03'},
+    {'identifier': 'Melee_Punch_04', 'key': 'attack_sequence_melee_punch_04'},
+    {'identifier': 'Melee_Punch_05', 'key': 'attack_sequence_melee_punch_05'},
+    {'identifier': 'Melee_Punch_06', 'key': 'attack_sequence_melee_punch_06'},
+    {'identifier': 'Melee_Punch_07', 'key': 'attack_sequence_melee_punch_07'},
+    {'identifier': 'Melee_Punch_08', 'key': 'attack_sequence_melee_punch_08'},
+    {'identifier': 'Melee_Punch_09', 'key': 'attack_sequence_melee_punch_09'},
+    {'identifier': 'Melee_Punch_10', 'key': 'attack_sequence_melee_punch_10'},
+    {'identifier': 'Melee_Kick_01',  'key': 'attack_sequence_melee_kick_01'},
+    {'identifier': 'Melee_Kick_02',  'key': 'attack_sequence_melee_kick_02'},
+    {'identifier': 'Melee_Kick_03',  'key': 'attack_sequence_melee_kick_03'},
+    {'identifier': 'Melee_Kick_04',  'key': 'attack_sequence_melee_kick_04'},
+    {'identifier': 'Melee_Kick_05',  'key': 'attack_sequence_melee_kick_05'},
+    {'identifier': 'Melee_Kick_06',  'key': 'attack_sequence_melee_kick_06'},
+    {'identifier': 'Melee_Kick_07',  'key': 'attack_sequence_melee_kick_07'},
+    {'identifier': 'Melee_Kick_08',  'key': 'attack_sequence_melee_kick_08'},
+    {'identifier': 'Melee_Kick_09',  'key': 'attack_sequence_melee_kick_09'},
+    {'identifier': 'Melee_Kick_10',  'key': 'attack_sequence_melee_kick_10'},
+]
 
 def localization_forwards(apps, schema_editor):
     Localization = apps.get_model('content', 'Localization')
@@ -377,6 +376,19 @@ def ability_type_reverse(apps, schema_editor):
     Ability.objects.all().delete()
     AbilityType.objects.all().delete()
 
+def attack_sequence_forwards(apps, schema_editor):
+    AttackSequence = apps.get_model('content', 'AttackSequence')
+
+    for ats in attack_sequences:
+        AttackSequence.objects.create(
+            identifier=ats['identifier'],
+            key=ats['key'],
+        )
+
+def attack_sequence_reverse(apps, schema_editor):    
+    AttackSequence = apps.get_model('content', 'AttackSequence')
+    AttackSequence.objects.all.delete()
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -390,4 +402,5 @@ class Migration(migrations.Migration):
         migrations.RunPython(damage_type_forwards, damage_type_reverse),
         migrations.RunPython(equipment_type_forwards, equipment_type_reverse),
         migrations.RunPython(ability_type_forwards, ability_type_reverse),
+        migrations.RunPython(attack_sequence_forwards, attack_sequence_reverse),
     ]

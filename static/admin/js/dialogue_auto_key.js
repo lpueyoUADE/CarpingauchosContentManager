@@ -3,28 +3,41 @@ function isEditingDialogueForm() {
     return path.includes('dialogue') && path.includes('change');
 }
 
-function updateKey(identifierInput, keyInput, npcSelect, typeSelect) {
-    const prefix = identifierInput.dataset.keyPrefix || '';
-    const slug = identifierInput.value
-        .toLowerCase()
-        .replace(/[^\w\s]/g, '')    // elimina caracteres no alfanuméricos
-        .trim()
-        .replace(/\s+/g, '_');      // reemplaza espacios por guiones bajos
+function updateAddRelatedLink(addRelatedLink, model, keyValue, prefix, suffix) {
+    if(!addRelatedLink) return;
 
-    const npc = npcSelect.options[npcSelect.selectedIndex].text.split("npc_")[1];
-
-    const typeValue = isEditingDialogueForm() ? typeSelect.innerText : typeSelect.value;
-    keyInput.value = prefix + typeValue.toLowerCase() + "_" + npc + "_" + slug;
-
+    getSanitizedKey(keyValue, model, {
+        "prefix": prefix,
+        "slug": keyValue,
+        "suffix": suffix
+    }, (updatedKey) => {
+        // Update popup link
+        const baseUrl = addRelatedLink.getAttribute('href').split('?')[0];
+        const newHref = `${baseUrl}?_popup=1&identifier=${encodeURIComponent(updatedKey)}`;
+        addRelatedLink.setAttribute('href', newHref);
+    }, false);
 }
 
-function updateAddRelatedLink(addRelatedLink, keyValue, suffix) {
-    if(!addRelatedLink) return;
-    
-    // Update popup link
-    const baseUrl = addRelatedLink.getAttribute('href').split('?')[0];
-    const newHref = `${baseUrl}?_popup=1&identifier=${encodeURIComponent(keyValue + suffix)}`;
-    addRelatedLink.setAttribute('href', newHref);
+function updateKey(identifierInput, keyInput, npcSelect, typeSelect) {
+    getSanitizedKey(keyInput, "Dialogue", {
+        "prefix": identifierInput.dataset.keyPrefix,
+        "type": isEditingDialogueForm() ? typeSelect.innerText : typeSelect.value,
+        "npc": npcSelect.options[npcSelect.selectedIndex].text,
+        "slug": identifierInput.value,
+    }, () => {
+        const addRelatedLinkquestPromptText = document.querySelector('#add_id_quest_prompt_dialogue-0-text');
+        const addRelatedLinkquestPromptDenyText = document.querySelector('#add_id_quest_prompt_dialogue-0-deny_text');
+        const addRelatedLinkquestPromptAcceptText = document.querySelector('#add_id_quest_prompt_dialogue-0-acccept_text');
+
+        const addRelatedLinkBasicSequence = document.querySelector('#add_id_basic_dialogue-0-sequence');
+        const addRelatedLinkQuestEndSequence = document.querySelector('#add_id_quest_end_dialogue-0-sequence');
+
+        updateAddRelatedLink(addRelatedLinkquestPromptText, "DialogueSingleItem", keyInput.value, "dialoguesingleitem_", "single_item");
+        updateAddRelatedLink(addRelatedLinkquestPromptDenyText, "DialogueSingleItem", keyInput.value, "dialoguesingleitem_", "deny_single_item");
+        updateAddRelatedLink(addRelatedLinkquestPromptAcceptText, "DialogueSingleItem", keyInput.value, "dialoguesingleitem_", "accept_single_item");
+        updateAddRelatedLink(addRelatedLinkBasicSequence, "DialogueSequence", keyInput.value, "dialoguesequence_", "");
+        updateAddRelatedLink(addRelatedLinkQuestEndSequence, "DialogueSequence", keyInput.value, "dialoguesequence_", "");
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -33,43 +46,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const typeSelect = isEditingDialogueForm() ? document.querySelector('.field-type .readonly') : document.querySelector('#id_type');
     const npcSelect = document.querySelector('#id_npc');
 
-    const updateRelatedLinks = () => {
-            const addRelatedLinkquestPromptText = document.querySelector('#add_id_quest_prompt_dialogue-0-text');
-            const addRelatedLinkquestPromptDenyText = document.querySelector('#add_id_quest_prompt_dialogue-0-deny_text');
-            const addRelatedLinkquestPromptAcceptText = document.querySelector('#add_id_quest_prompt_dialogue-0-acccept_text');
-
-            const addRelatedLinkBasicSequence = document.querySelector('#add_id_basic_dialogue-0-sequence');
-            const addRelatedLinkQuestEndSequence = document.querySelector('#add_id_quest_end_dialogue-0-sequence');
-
-            updateAddRelatedLink(addRelatedLinkquestPromptText, keyInput.value, "_single_item");
-            updateAddRelatedLink(addRelatedLinkquestPromptDenyText, keyInput.value, "_deny_single_item");
-            updateAddRelatedLink(addRelatedLinkquestPromptAcceptText, keyInput.value, "_accept_single_item");
-            updateAddRelatedLink(addRelatedLinkBasicSequence, keyInput.value, "_basic_sequence");
-            updateAddRelatedLink(addRelatedLinkQuestEndSequence, keyInput.value, "_quest_end_sequence");
-    }
-
-    const updateReferences = () => {
-            updateKey(identifierInput, keyInput, npcSelect, typeSelect);
-            updateRelatedLinks();
-    };
-
     if (identifierInput && keyInput && npcSelect && typeSelect) {
-        updateReferences();
+        updateKey(identifierInput, keyInput, npcSelect, typeSelect);
         
         typeSelect.addEventListener('input', function () {
-            updateReferences();
+            updateKey(identifierInput, keyInput, npcSelect, typeSelect);
         });
 
         npcSelect.addEventListener('input', function () {
-            updateReferences();
+            updateKey(identifierInput, keyInput, npcSelect, typeSelect);
         });
 
         identifierInput.addEventListener('input', function () {
-            updateReferences();
+            updateKey(identifierInput, keyInput, npcSelect, typeSelect);
         });
     }
 
     document.addEventListener("dialogueSubtypeChange", function(e) {
-        updateRelatedLinks();
+        updateKey(identifierInput, keyInput, npcSelect, typeSelect);
     });
 });

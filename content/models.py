@@ -556,7 +556,6 @@ class DamageType(BaseModel):
         return super().to_dict(None, [DamageType.name])
 
 class AttackSequence(BaseModel):
-    #TODO: Agregar attack sequences a la migracion.
     prefix ="attack_sequence_"
 
     def to_dict_item(self):

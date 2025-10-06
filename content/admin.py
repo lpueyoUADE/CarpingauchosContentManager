@@ -188,6 +188,10 @@ def _add_localization_field_filter(key_prefix, db_field, kwargs):
         # Filtramos por key que contenga cierto texto
         kwargs["queryset"] = Localization.objects.filter(Q(key__icontains=key_prefix) & Q(key__icontains=db_field.name)).order_by('key')
 
+class AutoKeyMixin(admin.ModelAdmin):
+    class Media:
+        js = ('admin/js/auto_key.js',)
+
 class BaseModelAdmin(admin.ModelAdmin):
     key_prefix = ''
 
@@ -195,7 +199,11 @@ class BaseModelAdmin(admin.ModelAdmin):
         css = {
             'all': ('admin/css/custom_admin_filter_sidebar.css','admin/css/custom_admin_submit_row.css',)
         }
-        js = ('admin/js/auto_key.js', 'admin/js/auto_localizations.js', 'admin/js/file_grid.js')
+        js = (
+            'admin/js/get_sanitized_key.js',
+            'admin/js/auto_localizations.js',
+            'admin/js/file_grid.js'
+        )
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         # Verificamos si el campo apunta a Localization
@@ -578,7 +586,7 @@ def export_all_csv(modeladmin, request, queryset):
 export_csv.short_description = "Exportar selección a CSV"
 export_all_csv.short_description = "Exportar todo a CSV"
 @admin.register(Localization, site=custom_admin_site)
-class LocalizationAdmin(BaseModelAdmin):
+class LocalizationAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = Localization.prefix
 
     list_display = ('identifier', 'key', 'model_name', 'english', 'spanish')
@@ -626,7 +634,11 @@ class QuestObjectiveInline(admin.TabularInline):
     extra = 1  # cuántos formularios vacíos mostrar para crear nuevos objetivos
 
     class Media:
-        js = ('admin/js/auto_key_inline.js', 'admin/js/tabularinline_questobjectives_index_autoincrement.js',)
+        js = (
+            'admin/js/get_sanitized_key.js',
+            'admin/js/auto_key_inline.js',
+            'admin/js/tabularinline_questobjectives_index_autoincrement.js',
+        )
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         # Verificamos si el campo apunta a Localization
@@ -635,7 +647,7 @@ class QuestObjectiveInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(QuestObjective, site=custom_admin_site)
-class QuestObjectiveAdmin(BaseModelAdmin):
+class QuestObjectiveAdmin(BaseModelAdmin, AutoKeyMixin):
     list_display = ('identifier', 'key', 'quest_identifier','english_name', 'spanish_name',)
 
     ordering = ('key',)
@@ -666,7 +678,7 @@ class QuestForm(BaseModelForm):
         fields = '__all__'
 
 @admin.register(NPC, site=custom_admin_site)
-class NPCAdmin(BaseModelAdmin):
+class NPCAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = NPC.prefix
     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
     ordering = ('key',)
@@ -684,7 +696,7 @@ class ItemRewardInline(admin.TabularInline):
     extra = 1
 
 @admin.register(Quest, site=custom_admin_site)
-class QuestAdmin(BaseModelAdmin):
+class QuestAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = Quest.prefix
 
     inlines = [QuestObjectiveInline, ItemRewardInline]
@@ -813,7 +825,7 @@ class ItemForm(BaseModelForm):
         return True
 
 @admin.register(WeaponType, site=custom_admin_site)
-class WeaponTypeAdmin(BaseModelAdmin):
+class WeaponTypeAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = WeaponType.prefix
     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
     ordering = ('key',)
@@ -827,7 +839,7 @@ class WeaponTypeAdmin(BaseModelAdmin):
     spanish_name.short_description = "ES"
 
 @admin.register(DamageType, site=custom_admin_site)
-class DamageTypeAdmin(BaseModelAdmin):
+class DamageTypeAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = DamageType.prefix
     list_display = ('identifier', 'key', 'damage_type_id', 'english_name', 'spanish_name',)
     ordering = ('damage_type_id',)
@@ -841,7 +853,7 @@ class DamageTypeAdmin(BaseModelAdmin):
     spanish_name.short_description = "ES"
 
 @admin.register(EquipmentType, site=custom_admin_site)
-class EquipmentTypeAdmin(BaseModelAdmin):
+class EquipmentTypeAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = EquipmentType.prefix
     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
     ordering = ('key',)
@@ -869,7 +881,7 @@ class AttackSequenceForm(BaseModelForm):
         fields = '__all__'
 
 @admin.register(AttackSequence, site=custom_admin_site)
-class AttackSequenceAdmin(BaseModelAdmin):
+class AttackSequenceAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = AttackSequence.prefix
 
     list_display = ('identifier', 'key',)
@@ -877,7 +889,7 @@ class AttackSequenceAdmin(BaseModelAdmin):
     form = AttackSequenceForm
 
 @admin.register(Item, site=custom_admin_site)
-class ItemAdmin(BaseModelAdmin):
+class ItemAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = Item.prefix
     list_display = ('identifier', 'key', 'type', 'rarity_name', 'value', 'english_name', 'spanish_name',
                     'flat_physical_damage', 'flat_magical_damage',
@@ -901,7 +913,10 @@ class ItemAdmin(BaseModelAdmin):
         css = {
             'all':('admin/css/custom_admin_itemattributes_table.css',),
         }
-        js = ('admin/js/item_auto_key.js', 'admin/js/item_type_toggle.js')
+        js = (
+            'admin/js/item_auto_key.js', 
+            'admin/js/item_type_toggle.js'
+        )
 
     def get_readonly_fields(self, request, obj=None):
         if obj:  # si ya existe, es edición
@@ -1119,7 +1134,7 @@ class RarityForm(BaseModelForm):
         }
 
 @admin.register(Rarity, site=custom_admin_site)
-class RarityAdmin(BaseModelAdmin):
+class RarityAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = Rarity.prefix
     list_display = ('key', 'rarity_json_id','gradient_color_start', 'gradient_color_end', 'rarity_name','english_name', 'spanish_name',)
 
@@ -1193,7 +1208,7 @@ class RarityAdmin(BaseModelAdmin):
 
 
 @admin.register(LoadingScreenMessage, site=custom_admin_site)
-class LoadingScreenMessageAdmin(BaseModelAdmin):
+class LoadingScreenMessageAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = LoadingScreenMessage.prefix
 
     list_display = ('key' ,'english_message', 'spanish_message',)
@@ -1214,7 +1229,7 @@ class POIForm(BaseModelForm):
         fields = '__all__'
 
 @admin.register(POI, site=custom_admin_site)
-class POIAdmin(BaseModelAdmin):
+class POIAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = POI.prefix
 
     ordering = ('key',)
@@ -1244,7 +1259,7 @@ class POIAdmin(BaseModelAdmin):
     )
 
 @admin.register(ProjectileType, site=custom_admin_site)
-class ProjectileTypeAdmin(BaseModelAdmin):
+class ProjectileTypeAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = ProjectileType.prefix
     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
     ordering = ('key',)
@@ -1263,7 +1278,7 @@ class ProjectileForm(BaseModelForm):
         fields = '__all__'
 
 @admin.register(Projectile, site=custom_admin_site)
-class ProjectileAdmin(BaseModelAdmin):
+class ProjectileAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = Projectile.prefix
     list_display = ('identifier', 'key')
 
@@ -1277,7 +1292,7 @@ class AbilityTreeForm(BaseModelForm):
         fields = '__all__'
 
 @admin.register(AbilityTree, site=custom_admin_site)
-class AbilityTreeAdmin(BaseModelAdmin):
+class AbilityTreeAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = AbilityTree.prefix
     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
 
@@ -1294,7 +1309,7 @@ class AbilityTreeAdmin(BaseModelAdmin):
     spanish_name.short_description = "ES"
 
 @admin.register(AbilityType, site=custom_admin_site)
-class AbilityTypeAdmin(BaseModelAdmin):
+class AbilityTypeAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = AbilityType.prefix
     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
     ordering = ('key',)
@@ -1313,7 +1328,7 @@ class AbilityForm(BaseModelForm):
         fields = '__all__'
 
 @admin.register(Ability, site=custom_admin_site)
-class AbilityAdmin(BaseModelAdmin):
+class AbilityAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = Ability.prefix
     list_display = ('identifier', 'key', 'ability_tree_name', 'english_name', 'spanish_name',)
 
@@ -1339,21 +1354,13 @@ class ConditionForm(BaseModelForm):
         fields = '__all__'
 
 @admin.register(Condition, site=custom_admin_site)
-class ConditionAdmin(BaseModelAdmin):
+class ConditionAdmin(BaseModelAdmin, AutoKeyMixin):
     #TODO: limpiar campos y comentarios sobrantes
     list_display = ('identifier', 'key', 'use_identifier')
 
     ordering = ('key',)
 
     form = ConditionForm
-
-    # def english_name(self, obj):
-    #     return obj.name.english
-    # english_name.short_description = "EN"
-
-    # def spanish_name(self, obj):
-    #     return obj.name.spanish
-    # spanish_name.short_description = "ES"
 
 class BasicDialogueInlineForm(BaseItemInlineForm):
     class Meta:
@@ -1494,7 +1501,11 @@ class DialogueSequenceItemInline(admin.TabularInline):
     extra = 1
 
     class Media:
-        js = ('admin/js/dialogue_item_auto_key_inline.js', 'admin/js/tabularinline_items_index_autoincrement.js',)
+        js = (
+            'admin/js/get_sanitized_key.js', 
+            'admin/js/dialogue_item_auto_key_inline.js', 
+            'admin/js/tabularinline_items_index_autoincrement.js',
+        )
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         # Verificamos si el campo apunta a Localization
@@ -1506,9 +1517,21 @@ class DialogueSequenceForm(BaseModelForm):
     class Meta(BaseModelForm.Meta):
         model = DialogueSequence
         fields = '__all__'
+        widgets = {
+            'identifier': forms.TextInput(
+                attrs={
+                    'style': 'width: 100%;',
+                }
+            ),
+            'key': forms.TextInput(
+                attrs={
+                    'style': 'width: 100%;',
+                }
+            ),
+        } 
 
 @admin.register(DialogueSequence, site=custom_admin_site)
-class DialogueSequenceAdmin(BaseModelAdmin):
+class DialogueSequenceAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = DialogueSequence.prefix
     # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
 
@@ -1517,29 +1540,24 @@ class DialogueSequenceAdmin(BaseModelAdmin):
     form = DialogueSequenceForm
 
 @admin.register(DialogueSingleItem, site=custom_admin_site)
-class DialogueSingleItemAdmin(BaseModelAdmin):
+class DialogueSingleItemAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = DialogueSingleItem.prefix
-    # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+    list_display = ('identifier', 'key', 'speaker', 'single_item_text_en', 'single_item_text_es')
 
     ordering = ('key',)
 
     form = DialogueSingleItemForm
 
-    # class Media:
-    #     js = (
-    #         'admin/js/auto_localizations.js',
-    #     )
+    def single_item_text_en(self,obj):
+        return obj.text.english
+    single_item_text_en.short_description = "text (EN)"
 
-    # def english_name(self, obj):
-    #     return obj.name.english
-    # english_name.short_description = "EN"
-
-    # def spanish_name(self, obj):
-    #     return obj.name.spanish
-    # spanish_name.short_description = "ES"
+    def single_item_text_es(self,obj):
+        return obj.text.spanish
+    single_item_text_es.short_description = "text (ES)"
 
 @admin.register(DialogueSequenceItem, site=custom_admin_site)
-class DialogueSequenceItemAdmin(BaseModelAdmin):
+class DialogueSequenceItemAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = DialogueSequenceItem.prefix
     # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
 
@@ -1563,7 +1581,7 @@ class DiaryEntryForm(BaseModelForm):
         fields = '__all__'
 
 @admin.register(DiaryEntry, site=custom_admin_site)
-class DiaryEntryAdmin(BaseModelAdmin):
+class DiaryEntryAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = DiaryEntry.prefix
     list_display = ('identifier', 'key','english_title', 'spanish_title', 'english_text', 'spanish_text',)
     
@@ -1598,7 +1616,10 @@ class DiaryEntryInline(admin.TabularInline):
     extra = 1
 
     class Media:
-        js = ('admin/js/diary_entry_auto_key_inline.js',)
+        js = (
+            'admin/js/get_sanitized_key.js',
+            'admin/js/diary_entry_auto_key_inline.js',
+        )
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         # Verificamos si el campo apunta a Localization
@@ -1608,7 +1629,7 @@ class DiaryEntryInline(admin.TabularInline):
 
 
 @admin.register(DiaryPage, site=custom_admin_site)
-class DiaryPageAdmin(BaseModelAdmin):
+class DiaryPageAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = DiaryPage.prefix
     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
 
@@ -1637,7 +1658,10 @@ class WeaponAttackSequenceInline(admin.TabularInline):
     extra = 1
 
     class Media:
-        js = ('admin/js/tabularinline_weapon_attack_sequence_index_autoincrement.js',)
+        js = (
+            'admin/js/get_sanitized_key.js', 
+            'admin/js/tabularinline_weapon_attack_sequence_index_autoincrement.js',
+        )
 
 # Agregar para ver si los items y los subtipos se están creando bien.
 @admin.register(Weapon, site=custom_admin_site)
@@ -1679,6 +1703,11 @@ class WeaponAdmin(admin.ModelAdmin):
 
 # @admin.register(ItemAttributes, site=custom_admin_site)
 # class ItemAttributesAdmin(admin.ModelAdmin):
+#     def has_add_permission(self, request):
+#         return False
+
+# @admin.register(QuestEnd, site=custom_admin_site)
+# class QuestEndAdmin(admin.ModelAdmin):
 #     def has_add_permission(self, request):
 #         return False
 

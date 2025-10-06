@@ -1,36 +1,29 @@
 function updateDiaryEntryKey(identifierInput, keyInput, addTitleLink, addTextLink) {
-    const prefix = identifierInput.dataset.keyPrefix || '';
-    const raw = identifierInput.value;
+    getSanitizedKey(keyInput, "DiaryEntry", {
+        "prefix": identifierInput.dataset.keyPrefix,
+        "slug": identifierInput.value,
+        "diary_page_key": document.querySelector('#id_key').value,
+    },
+        () => {
+            // Update popup link
+            if (addTitleLink) {
+                const baseUrl = addTitleLink.getAttribute('href').split('?')[0];
+                const newHref = `${baseUrl}?_popup=1&identifier=${encodeURIComponent(keyInput.value + "_title")}`;
+                addTitleLink.setAttribute('href', newHref);
+            }
 
-    const slug = raw
-        .toLowerCase()
-        .replace(/[^\w\s]/g, '')  // elimina caracteres especiales
-        .trim()
-        .replace(/\s+/g, '_');   // reemplaza espacios por guiones bajos
-
-    diary_page_key = document.querySelector('#id_key').value;
-
-    finalValue = prefix + slug + "_" + diary_page_key; 
-
-    keyInput.value = finalValue;
-
-    // Update popup link
-    if (addTitleLink) {
-        const baseUrl = addTitleLink.getAttribute('href').split('?')[0];
-        const newHref = `${baseUrl}?_popup=1&identifier=${encodeURIComponent(finalValue + "_title")}`;
-        addTitleLink.setAttribute('href', newHref);
-    }
-
-    if (addTextLink) {
-        const baseUrl = addTextLink.getAttribute('href').split('?')[0];
-        const newHref = `${baseUrl}?_popup=1&identifier=${encodeURIComponent(finalValue + "_text")}`;
-        addTextLink.setAttribute('href', newHref);
-    }
+            if (addTextLink) {
+                const baseUrl = addTextLink.getAttribute('href').split('?')[0];
+                const newHref = `${baseUrl}?_popup=1&identifier=${encodeURIComponent(keyInput.value + "_text")}`;
+                addTextLink.setAttribute('href', newHref);
+            }
+        }
+    );
 }
 
-function updateDiaryEntries(container){
+function updateDiaryEntries(container) {
     const rows = container.querySelectorAll('tr[id^="entries-"]');
-     rows.forEach(row => {
+    rows.forEach(row => {
         const identifierInput = row.querySelector('input[id$="-identifier"]');
         const keyInput = row.querySelector('input[id$="-key"]');
         const addTitleLink = row.querySelector('a[id^="add_"][id$="-title"]');

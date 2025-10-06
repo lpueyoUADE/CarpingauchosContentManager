@@ -74,6 +74,8 @@ document.addEventListener('DOMContentLoaded', function () {
         itemTypeSelect.addEventListener('input', elementsToUpdate);
     }
 
+    document.addEventListener("generatedNewSanitizedKey", elementsToUpdate);
+
     if (isEditingForm()) {            
         if(editNameButton) {
             editNameButton.addEventListener('input', elementsToUpdate);

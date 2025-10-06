@@ -1,31 +1,22 @@
 function updateDialogueSequenceItemKey(identifierInput, keyInput, indexInput, addRelatedLink) {
-    const prefix = identifierInput.dataset.keyPrefix || '';
-    const raw = identifierInput.value;
-
-    const slug = raw
-        .toLowerCase()
-        .replace(/[^\w\s]/g, '')  // elimina caracteres especiales
-        .trim()
-        .replace(/\s+/g, '_');   // reemplaza espacios por guiones bajos
-
-    dialogue_item_key = document.querySelector('#id_key').value; // key del sequence item
-    dialogue_item_index = indexInput.value;
-
-    finalValue = prefix + slug + "_" + dialogue_item_key + "_" + dialogue_item_index; 
-
-    keyInput.value = finalValue;
-
-    // Update popup link
-    if (addRelatedLink) {
-        const baseUrl = addRelatedLink.getAttribute('href').split('?')[0];
-        const newHref = `${baseUrl}?_popup=1&identifier=${encodeURIComponent(finalValue + "_text")}`;
-        addRelatedLink.setAttribute('href', newHref);
-    }
+    getSanitizedKey(keyInput, "DialogueSequenceItem", {
+        "prefix": identifierInput.dataset.keyPrefix,
+        "dialogue_key": document.querySelector('#id_key').value,
+        "slug": identifierInput.value,
+        "dialogue_item_index": indexInput.value,
+    }, (updatedKey) => {
+        // Update popup link
+        if (addRelatedLink) {
+            const baseUrl = addRelatedLink.getAttribute('href').split('?')[0];
+            const newHref = `${baseUrl}?_popup=1&identifier=${encodeURIComponent(updatedKey + "_text")}`;
+            addRelatedLink.setAttribute('href', newHref);
+        }
+    });
 }
 
-function updateDialogueSequenceItems(container){
+function updateDialogueSequenceItems(container) {
     const rows = container.querySelectorAll('[id^="items-"]');
-     rows.forEach(row => {
+    rows.forEach(row => {
         const identifierInput = row.querySelector('input[id$="-identifier"]');
         const keyInput = row.querySelector('input[id$="-key"]');
         const indexInput = row.querySelector('input[id$="-index"]');
@@ -34,7 +25,7 @@ function updateDialogueSequenceItems(container){
         if (identifierInput && keyInput && indexInput) {
             updateDialogueSequenceItemKey(identifierInput, keyInput, indexInput, addRelatedLink);
         }
-     });
+    });
 }
 
 function setupInlineKeyAutoFill(container) {
