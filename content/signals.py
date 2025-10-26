@@ -1,6 +1,7 @@
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.db import transaction
+from django.db.models import Q
 from django.apps import apps
 from .utils import DialogueKeyGenerator as dKeyGenerator
 from .utils import DialogueSequenceKeyGenerator as dSequenceKeyGenerator
@@ -202,7 +203,9 @@ def crear_quest(sender, instance, created, **kwargs):
         # Asocio la condición del anteultimo questobjective al appear conditions del quest end
         # Definimos una acción diferida para después del commit
         def link_conditions_after_commit():
-            all_conditions = Condition.objects.filter(identifier__contains=quest_key).order_by('identifier')
+            all_conditions = Condition.objects.filter(
+                Q(identifier__contains=quest_key) & Q(identifier__contains='questobjective')
+            ).order_by('identifier')
 
             # Me quedo con la anteultima condicion, o la primera si es una sola.
             dialogue_end.appear_conditions.add(all_conditions[len(all_conditions) -2] if len(all_conditions) > 1 else all_conditions[0])

@@ -824,69 +824,69 @@ class ItemForm(BaseModelForm):
     def has_changed(self):
         return True
 
-@admin.register(WeaponType, site=custom_admin_site)
-class WeaponTypeAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = WeaponType.prefix
-    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
-    ordering = ('key',)
+# @admin.register(WeaponType, site=custom_admin_site)
+# class WeaponTypeAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = WeaponType.prefix
+#     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+#     ordering = ('key',)
         
-    def english_name(self, obj):
-        return obj.name.english
-    english_name.short_description = "EN"
+#     def english_name(self, obj):
+#         return obj.name.english
+#     english_name.short_description = "EN"
 
-    def spanish_name(self, obj):
-        return obj.name.spanish
-    spanish_name.short_description = "ES"
+#     def spanish_name(self, obj):
+#         return obj.name.spanish
+#     spanish_name.short_description = "ES"
 
-@admin.register(DamageType, site=custom_admin_site)
-class DamageTypeAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = DamageType.prefix
-    list_display = ('identifier', 'key', 'damage_type_id', 'english_name', 'spanish_name',)
-    ordering = ('damage_type_id',)
+# @admin.register(DamageType, site=custom_admin_site)
+# class DamageTypeAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = DamageType.prefix
+#     list_display = ('identifier', 'key', 'damage_type_id', 'english_name', 'spanish_name',)
+#     ordering = ('damage_type_id',)
    
-    def english_name(self, obj):
-        return obj.name.english
-    english_name.short_description = "EN"
+#     def english_name(self, obj):
+#         return obj.name.english
+#     english_name.short_description = "EN"
 
-    def spanish_name(self, obj):
-        return obj.name.spanish
-    spanish_name.short_description = "ES"
+#     def spanish_name(self, obj):
+#         return obj.name.spanish
+#     spanish_name.short_description = "ES"
 
-@admin.register(EquipmentType, site=custom_admin_site)
-class EquipmentTypeAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = EquipmentType.prefix
-    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
-    ordering = ('key',)
+# @admin.register(EquipmentType, site=custom_admin_site)
+# class EquipmentTypeAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = EquipmentType.prefix
+#     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+#     ordering = ('key',)
 
-    def has_add_permission(self, request, obj=None):
-        enabled_views = (
-            'index',
-            'content_equipment_type_changelist',
-            'content_equipment_type_add',
-            'content_equipment_type_change'
-        )
-        return request.resolver_match and request.resolver_match.url_name in enabled_views
+#     def has_add_permission(self, request, obj=None):
+#         enabled_views = (
+#             'index',
+#             'content_equipment_type_changelist',
+#             'content_equipment_type_add',
+#             'content_equipment_type_change'
+#         )
+#         return request.resolver_match and request.resolver_match.url_name in enabled_views
      
-    def english_name(self, obj):
-        return obj.name.english
-    english_name.short_description = "EN"
+#     def english_name(self, obj):
+#         return obj.name.english
+#     english_name.short_description = "EN"
 
-    def spanish_name(self, obj):
-        return obj.name.spanish
-    spanish_name.short_description = "ES"
+#     def spanish_name(self, obj):
+#         return obj.name.spanish
+#     spanish_name.short_description = "ES"
 
 class AttackSequenceForm(BaseModelForm):
     class Meta(BaseModelForm.Meta):
         model = AttackSequence
         fields = '__all__'
 
-@admin.register(AttackSequence, site=custom_admin_site)
-class AttackSequenceAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = AttackSequence.prefix
+# @admin.register(AttackSequence, site=custom_admin_site)
+# class AttackSequenceAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = AttackSequence.prefix
 
-    list_display = ('identifier', 'key',)
-    ordering = ('key',)
-    form = AttackSequenceForm
+#     list_display = ('identifier', 'key',)
+#     ordering = ('key',)
+#     form = AttackSequenceForm
 
 @admin.register(Item, site=custom_admin_site)
 class ItemAdmin(BaseModelAdmin, AutoKeyMixin):
@@ -1133,220 +1133,220 @@ class RarityForm(BaseModelForm):
             'color_end': forms.TextInput(attrs={'type': 'color'}),
         }
 
-@admin.register(Rarity, site=custom_admin_site)
-class RarityAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = Rarity.prefix
-    list_display = ('key', 'rarity_json_id','gradient_color_start', 'gradient_color_end', 'rarity_name','english_name', 'spanish_name',)
+# @admin.register(Rarity, site=custom_admin_site)
+# class RarityAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = Rarity.prefix
+#     list_display = ('key', 'rarity_json_id','gradient_color_start', 'gradient_color_end', 'rarity_name','english_name', 'spanish_name',)
 
-    ordering = ('rarity_json_id',)
+#     ordering = ('rarity_json_id',)
 
-    form = RarityForm
+#     form = RarityForm
 
-    def has_add_permission(self, request, obj=None):
-        enabled_views = (
-            'index',
-            'content_rarity_changelist',
-            'content_rarity_add',
-            'content_rarity_change'
-        )
-        return request.resolver_match and request.resolver_match.url_name in enabled_views
+#     def has_add_permission(self, request, obj=None):
+#         enabled_views = (
+#             'index',
+#             'content_rarity_changelist',
+#             'content_rarity_add',
+#             'content_rarity_change'
+#         )
+#         return request.resolver_match and request.resolver_match.url_name in enabled_views
     
-    def has_delete_permission(self, request, obj=None):
-        enabled_views = (
-            'index',
-            'content_rarity_changelist',
-            'content_rarity_add',
-            'content_rarity_change'
-        )
-        return request.resolver_match and request.resolver_match.url_name in enabled_views
+#     def has_delete_permission(self, request, obj=None):
+#         enabled_views = (
+#             'index',
+#             'content_rarity_changelist',
+#             'content_rarity_add',
+#             'content_rarity_change'
+#         )
+#         return request.resolver_match and request.resolver_match.url_name in enabled_views
     
-    def has_change_permission(self, request, obj=None):
-        enabled_views = (
-            'index',
-            'content_rarity_changelist',
-            'content_rarity_add',
-            'content_rarity_change'
-        )
-        return request.resolver_match and request.resolver_match.url_name in enabled_views
+#     def has_change_permission(self, request, obj=None):
+#         enabled_views = (
+#             'index',
+#             'content_rarity_changelist',
+#             'content_rarity_add',
+#             'content_rarity_change'
+#         )
+#         return request.resolver_match and request.resolver_match.url_name in enabled_views
     
 
-    def english_name(self, obj):
-        return obj.name.english
-    english_name.short_description = "EN"
+#     def english_name(self, obj):
+#         return obj.name.english
+#     english_name.short_description = "EN"
 
-    def spanish_name(self, obj):
-        return obj.name.spanish
-    spanish_name.short_description = "ES"
+#     def spanish_name(self, obj):
+#         return obj.name.spanish
+#     spanish_name.short_description = "ES"
   
-    def gradient_color_start(self, obj):
-        return format_html(
-            '<span style="color: {};">{}</span>',
-            obj.color_start,
-            obj.color_start
-        )
+#     def gradient_color_start(self, obj):
+#         return format_html(
+#             '<span style="color: {};">{}</span>',
+#             obj.color_start,
+#             obj.color_start
+#         )
     
-    gradient_color_start.short_description = "Color Start"
+#     gradient_color_start.short_description = "Color Start"
     
-    def gradient_color_end(self, obj):
-        return format_html(
-            '<span style="color: {};">{}</span>',
-            obj.color_end,
-            obj.color_end 
-        )
+#     def gradient_color_end(self, obj):
+#         return format_html(
+#             '<span style="color: {};">{}</span>',
+#             obj.color_end,
+#             obj.color_end 
+#         )
     
-    gradient_color_end.short_description = "Color End"
+#     gradient_color_end.short_description = "Color End"
 
-    def rarity_name(self, obj):
-        return format_html(
-            '<span style="color: {};">{}</span>',
-            obj.color_start,
-            obj.name.english 
-        )
+#     def rarity_name(self, obj):
+#         return format_html(
+#             '<span style="color: {};">{}</span>',
+#             obj.color_start,
+#             obj.name.english 
+#         )
 
-    rarity_name.short_description = "Name"
-    rarity_name.admin_order_field = 'name'
+#     rarity_name.short_description = "Name"
+#     rarity_name.admin_order_field = 'name'
 
 
-@admin.register(LoadingScreenMessage, site=custom_admin_site)
-class LoadingScreenMessageAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = LoadingScreenMessage.prefix
+# @admin.register(LoadingScreenMessage, site=custom_admin_site)
+# class LoadingScreenMessageAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = LoadingScreenMessage.prefix
 
-    list_display = ('key' ,'english_message', 'spanish_message',)
+#     list_display = ('key' ,'english_message', 'spanish_message',)
 
-    ordering = ('key',)
+#     ordering = ('key',)
 
-    def english_message(self, obj):
-        return obj.message.english
-    english_message.short_description = "EN"
+#     def english_message(self, obj):
+#         return obj.message.english
+#     english_message.short_description = "EN"
 
-    def spanish_message(self, obj):
-        return obj.message.spanish
-    spanish_message.short_description = "ES"
+#     def spanish_message(self, obj):
+#         return obj.message.spanish
+#     spanish_message.short_description = "ES"
 
 class POIForm(BaseModelForm):
     class Meta(BaseModelForm.Meta):
         model = POI
         fields = '__all__'
 
-@admin.register(POI, site=custom_admin_site)
-class POIAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = POI.prefix
+# @admin.register(POI, site=custom_admin_site)
+# class POIAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = POI.prefix
 
-    ordering = ('key',)
+#     ordering = ('key',)
 
-    form = POIForm
+#     form = POIForm
 
-    def english_name(self, obj):
-        return obj.name.english
-    english_name.short_description = "EN"
+#     def english_name(self, obj):
+#         return obj.name.english
+#     english_name.short_description = "EN"
 
-    def spanish_name(self, obj):
-        return obj.name.spanish
-    spanish_name.short_description = "ES"
+#     def spanish_name(self, obj):
+#         return obj.name.spanish
+#     spanish_name.short_description = "ES"
 
-    fieldsets = (
-        ("General", {
-            "fields": ("identifier", "key", "name", "icon_path", "show_at_start", "show_notification", "trigger_conditions"),
-        }),
-        ("Min Bounds", {
-            "fields": ("min_bounds_x", "min_bounds_y"),
-            "description": "Vector2"
-        }),
-        ("Max Bounds", {
-            "fields": (("max_bounds_x", "max_bounds_y")),
-            "description": "Vector2"
-        }),
-    )
+#     fieldsets = (
+#         ("General", {
+#             "fields": ("identifier", "key", "name", "icon_path", "show_at_start", "show_notification", "trigger_conditions"),
+#         }),
+#         ("Min Bounds", {
+#             "fields": ("min_bounds_x", "min_bounds_y"),
+#             "description": "Vector2"
+#         }),
+#         ("Max Bounds", {
+#             "fields": (("max_bounds_x", "max_bounds_y")),
+#             "description": "Vector2"
+#         }),
+#     )
 
-@admin.register(ProjectileType, site=custom_admin_site)
-class ProjectileTypeAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = ProjectileType.prefix
-    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
-    ordering = ('key',)
+# @admin.register(ProjectileType, site=custom_admin_site)
+# class ProjectileTypeAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = ProjectileType.prefix
+#     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+#     ordering = ('key',)
         
-    def english_name(self, obj):
-        return obj.name.english
-    english_name.short_description = "EN"
+#     def english_name(self, obj):
+#         return obj.name.english
+#     english_name.short_description = "EN"
 
-    def spanish_name(self, obj):
-        return obj.name.spanish
-    spanish_name.short_description = "ES"
+#     def spanish_name(self, obj):
+#         return obj.name.spanish
+#     spanish_name.short_description = "ES"
 
 class ProjectileForm(BaseModelForm):
     class Meta(BaseModelForm.Meta):
         model = Projectile
         fields = '__all__'
 
-@admin.register(Projectile, site=custom_admin_site)
-class ProjectileAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = Projectile.prefix
-    list_display = ('identifier', 'key')
+# @admin.register(Projectile, site=custom_admin_site)
+# class ProjectileAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = Projectile.prefix
+#     list_display = ('identifier', 'key')
 
-    ordering = ('key',)
+#     ordering = ('key',)
 
-    form = ProjectileForm
+#     form = ProjectileForm
 
 class AbilityTreeForm(BaseModelForm):
     class Meta(BaseModelForm.Meta):
         model = AbilityTree
         fields = '__all__'
 
-@admin.register(AbilityTree, site=custom_admin_site)
-class AbilityTreeAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = AbilityTree.prefix
-    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+# @admin.register(AbilityTree, site=custom_admin_site)
+# class AbilityTreeAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = AbilityTree.prefix
+#     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
 
-    ordering = ('key',)
+#     ordering = ('key',)
 
-    form = AbilityTreeForm
+#     form = AbilityTreeForm
 
-    def english_name(self, obj):
-        return obj.name.english
-    english_name.short_description = "EN"
+#     def english_name(self, obj):
+#         return obj.name.english
+#     english_name.short_description = "EN"
 
-    def spanish_name(self, obj):
-        return obj.name.spanish
-    spanish_name.short_description = "ES"
+#     def spanish_name(self, obj):
+#         return obj.name.spanish
+#     spanish_name.short_description = "ES"
 
-@admin.register(AbilityType, site=custom_admin_site)
-class AbilityTypeAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = AbilityType.prefix
-    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
-    ordering = ('key',)
+# @admin.register(AbilityType, site=custom_admin_site)
+# class AbilityTypeAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = AbilityType.prefix
+#     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+#     ordering = ('key',)
         
-    def english_name(self, obj):
-        return obj.name.english
-    english_name.short_description = "EN"
+#     def english_name(self, obj):
+#         return obj.name.english
+#     english_name.short_description = "EN"
 
-    def spanish_name(self, obj):
-        return obj.name.spanish
-    spanish_name.short_description = "ES"
+#     def spanish_name(self, obj):
+#         return obj.name.spanish
+#     spanish_name.short_description = "ES"
 
 class AbilityForm(BaseModelForm):
     class Meta(BaseModelForm.Meta):
         model = Ability
         fields = '__all__'
 
-@admin.register(Ability, site=custom_admin_site)
-class AbilityAdmin(BaseModelAdmin, AutoKeyMixin):
-    key_prefix = Ability.prefix
-    list_display = ('identifier', 'key', 'ability_tree_name', 'english_name', 'spanish_name',)
+# @admin.register(Ability, site=custom_admin_site)
+# class AbilityAdmin(BaseModelAdmin, AutoKeyMixin):
+#     key_prefix = Ability.prefix
+#     list_display = ('identifier', 'key', 'ability_tree_name', 'english_name', 'spanish_name',)
 
-    ordering = ('key',)
+#     ordering = ('key',)
 
-    form = AbilityForm
+#     form = AbilityForm
 
-    def ability_tree_name(self, obj):
-        return obj.ability_tree.identifier
-    ability_tree_name.short_description = "Ability Tree Name"
+#     def ability_tree_name(self, obj):
+#         return obj.ability_tree.identifier
+#     ability_tree_name.short_description = "Ability Tree Name"
 
-    def english_name(self, obj):
-        return obj.name.english
-    english_name.short_description = "EN"
+#     def english_name(self, obj):
+#         return obj.name.english
+#     english_name.short_description = "EN"
 
-    def spanish_name(self, obj):
-        return obj.name.spanish
-    spanish_name.short_description = "ES"
+#     def spanish_name(self, obj):
+#         return obj.name.spanish
+#     spanish_name.short_description = "ES"
 
 class ConditionForm(BaseModelForm):
     class Meta(BaseModelForm.Meta):
