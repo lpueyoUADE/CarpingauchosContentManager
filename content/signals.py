@@ -186,7 +186,6 @@ def crear_quest(sender, instance, created, **kwargs):
             slug=dialogue_end_key
         )
 
-        print(dialogue_end_key)
         # Dialogue Sequence
         dialogue_sequence_end = DialogueSequence.objects.create(
             identifier = dialogue_end_key,
@@ -207,8 +206,8 @@ def crear_quest(sender, instance, created, **kwargs):
                 Q(identifier__contains=quest_key) & Q(identifier__contains='questobjective')
             ).order_by('identifier')
 
-            # Me quedo con la anteultima condicion, o la primera si es una sola.
-            dialogue_end.appear_conditions.add(all_conditions[len(all_conditions) -2] if len(all_conditions) > 1 else all_conditions[0])
+            # Si hay mas de 1 quest objective agrego el anteultimo, sino no agrego nada.
+            dialogue_end.appear_conditions.add(all_conditions[len(all_conditions) -2] if len(all_conditions) > 1 else None)
 
         transaction.on_commit(link_conditions_after_commit)
     

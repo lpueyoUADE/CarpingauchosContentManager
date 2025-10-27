@@ -197,7 +197,11 @@ class BaseModelAdmin(admin.ModelAdmin):
 
     class Media:
         css = {
-            'all': ('admin/css/custom_admin_filter_sidebar.css','admin/css/custom_admin_submit_row.css',)
+            'all': (
+                'admin/css/custom_admin_filter_sidebar.css',
+                'admin/css/custom_admin_submit_row.css',
+                'admin/css/custom_admin_identifier_column.css',
+            )
         }
         js = (
             'admin/js/get_sanitized_key.js',
@@ -824,19 +828,19 @@ class ItemForm(BaseModelForm):
     def has_changed(self):
         return True
 
-# @admin.register(WeaponType, site=custom_admin_site)
-# class WeaponTypeAdmin(BaseModelAdmin, AutoKeyMixin):
-#     key_prefix = WeaponType.prefix
-#     list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
-#     ordering = ('key',)
+@admin.register(WeaponType, site=custom_admin_site)
+class WeaponTypeAdmin(BaseModelAdmin, AutoKeyMixin):
+    key_prefix = WeaponType.prefix
+    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+    ordering = ('key',)
         
-#     def english_name(self, obj):
-#         return obj.name.english
-#     english_name.short_description = "EN"
+    def english_name(self, obj):
+        return obj.name.english
+    english_name.short_description = "EN"
 
-#     def spanish_name(self, obj):
-#         return obj.name.spanish
-#     spanish_name.short_description = "ES"
+    def spanish_name(self, obj):
+        return obj.name.spanish
+    spanish_name.short_description = "ES"
 
 # @admin.register(DamageType, site=custom_admin_site)
 # class DamageTypeAdmin(BaseModelAdmin, AutoKeyMixin):
@@ -880,13 +884,13 @@ class AttackSequenceForm(BaseModelForm):
         model = AttackSequence
         fields = '__all__'
 
-# @admin.register(AttackSequence, site=custom_admin_site)
-# class AttackSequenceAdmin(BaseModelAdmin, AutoKeyMixin):
-#     key_prefix = AttackSequence.prefix
+@admin.register(AttackSequence, site=custom_admin_site)
+class AttackSequenceAdmin(BaseModelAdmin, AutoKeyMixin):
+    key_prefix = AttackSequence.prefix
 
-#     list_display = ('identifier', 'key',)
-#     ordering = ('key',)
-#     form = AttackSequenceForm
+    list_display = ('identifier', 'key',)
+    ordering = ('key',)
+    form = AttackSequenceForm
 
 @admin.register(Item, site=custom_admin_site)
 class ItemAdmin(BaseModelAdmin, AutoKeyMixin):

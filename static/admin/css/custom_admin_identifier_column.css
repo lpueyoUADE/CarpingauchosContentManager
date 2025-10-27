@@ -1,0 +1,12 @@
+table#result_list tr:nth-child(even) th:nth-child(2) {
+    background-color: var(--darkened-bg);
+}
+
+table#result_list tr:nth-child(odd) th:nth-child(2) {
+    background-color: var(--body-bg);
+}
+
+table#result_list tr th:nth-child(2) {
+    position: sticky;
+    left: 0;
+}
