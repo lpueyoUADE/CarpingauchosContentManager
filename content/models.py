@@ -903,6 +903,8 @@ class Dialogue(BaseModel):
     trigger_id_conditions = models.ManyToManyField(Condition, related_name='ids_to_trigger', blank=True)
     trigger_diary_conditions = models.ManyToManyField(Condition, related_name='diaries_to_trigger', blank=True)
 
+    owner_reference = models.CharField(max_length=50,null=True, blank=True, help_text="Texto para organizar UI en Unity.", default="Generic")
+
     required_items = models.ManyToManyField(Item, through=DialogItemsRequired, related_name='required_by_dialogues', blank=True)
     remove_items = models.ManyToManyField(Item, through=DialogItemsToRemove, related_name='removed_by_dialogues', blank=True)
     give_items = models.ManyToManyField(Item, through=DialogItemsToGive, related_name='given_by_dialogues', blank=True)
@@ -963,6 +965,7 @@ class Dialogue(BaseModel):
             },
             "RemoveItems": self.get_related_objects("dialogitemstoremove_set", "item"),
             "AddItems": self.get_related_objects("dialogitemstogive_set", "item"),
+            "OwnerReference": self.owner_reference,
 
         } | dialog_subtype
 

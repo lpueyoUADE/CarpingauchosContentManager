@@ -1361,7 +1361,7 @@ class ConditionForm(BaseModelForm):
 class ConditionAdmin(BaseModelAdmin, AutoKeyMixin):
     #TODO: limpiar campos y comentarios sobrantes
     list_display = ('identifier', 'key', 'use_identifier')
-
+    search_fields = ('identifier', 'key')
     ordering = ('key',)
 
     form = ConditionForm
@@ -1429,7 +1429,8 @@ class DialogueForm(BaseModelForm):
 class DialogueAdmin(BaseModelAdmin):
     key_prefix = Dialogue.prefix
     list_display = ('identifier', 'key', 'type',)
-    list_filter = ("type",) 
+    list_filter = ("type",)
+    search_fields = ('identifier', 'key')
     ordering = ('key',)
 
     inlines = [
@@ -1537,7 +1538,8 @@ class DialogueSequenceForm(BaseModelForm):
 @admin.register(DialogueSequence, site=custom_admin_site)
 class DialogueSequenceAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = DialogueSequence.prefix
-    # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+    list_display = ('identifier', 'key',)
+    search_fields = ('identifier', 'key',)
 
     ordering = ('key',)
     inlines = [DialogueSequenceItemInline]
@@ -1547,6 +1549,7 @@ class DialogueSequenceAdmin(BaseModelAdmin, AutoKeyMixin):
 class DialogueSingleItemAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = DialogueSingleItem.prefix
     list_display = ('identifier', 'key', 'speaker', 'single_item_text_en', 'single_item_text_es')
+    search_fields = ('identifier', 'key')
 
     ordering = ('key',)
 
@@ -1563,19 +1566,20 @@ class DialogueSingleItemAdmin(BaseModelAdmin, AutoKeyMixin):
 @admin.register(DialogueSequenceItem, site=custom_admin_site)
 class DialogueSequenceItemAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = DialogueSequenceItem.prefix
-    # list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+    list_display = ('identifier', 'key', 'speaker', 'english_text', 'spanish_text',)
+    search_fields = ('identifier', 'key')
 
     ordering = ('key',)
 
     form = DialogueSequenceItemForm
 
-    # def english_name(self, obj):
-    #     return obj.name.english
-    # english_name.short_description = "EN"
+    def english_text(self, obj):
+        return obj.text.english
+    english_text.short_description = "EN"
 
-    # def spanish_name(self, obj):
-    #     return obj.name.spanish
-    # spanish_name.short_description = "ES"
+    def spanish_text(self, obj):
+        return obj.text.spanish
+    spanish_text.short_description = "ES"
 
 class DiaryEntryForm(BaseModelForm):
     key_prefix = DiaryEntry.prefix

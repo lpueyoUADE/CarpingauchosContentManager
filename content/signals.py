@@ -6,8 +6,10 @@ from django.apps import apps
 from .utils import DialogueKeyGenerator as dKeyGenerator
 from .utils import DialogueSequenceKeyGenerator as dSequenceKeyGenerator
 from .utils import DialogueSingleItemKeyGenerator as dSingleItemKeyGenerator
+from .utils import DialogueSequenceItemKeyGenerator as dSequenceItemKeyGenerator
 from .models import (
     Localization,
+    NPC,
     Quest,
     QuestObjective,
     Condition,
@@ -15,6 +17,8 @@ from .models import (
     DialogueTypes,
     DialogueSequence,
     DialogueSingleItem,
+    DialogueSequenceItem,
+    Basic,
     QuestPrompt,
     QuestEnd,
 )
@@ -192,6 +196,32 @@ def crear_quest(sender, instance, created, **kwargs):
             key = dialogue_sequence_end_key,
         )
 
+        # Dialogue Sequence Item
+        # Dialogue Sequence Item Key
+        sequence_item_key = dSequenceItemKeyGenerator.generate_key(
+            prefix=DialogueSequenceItem.prefix,
+            dialogue_key=dialogue_sequence_end_key,
+            slug="A",
+            dialogue_item_index="1",
+        )
+
+        # Dialogue Sequence Item Text
+        dialogue_seq_item_loc = Localization.objects.create(
+            identifier = f"{sequence_item_key}_text",
+            key= f"loc_{sequence_item_key}_text",
+            english="COMPLETAR sequence item text de " + sequence_item_key,
+            spanish="COMPLETAR sequence item text de" + sequence_item_key,
+        )    
+
+        DialogueSequenceItem.objects.create(
+            identifier = "A",
+            key=sequence_item_key,
+            text = dialogue_seq_item_loc,
+            speaker = False,
+            index = 1,
+            sequence = dialogue_sequence_end
+        )
+
         # Dialogue Quest End
         QuestEnd.objects.create(
             dialogue = dialogue_end,
@@ -222,6 +252,91 @@ def crear_quest_objectives(sender, instance, created, **kwargs):
             key= f"condition_{key}",
             use_identifier=True,
         )  
+
+@receiver(post_save, sender=NPC)
+def crear_first_talk(sender, instance, created, **kwargs):
+    if created:
+        npc_key = instance.key
+
+        # Dialogue Basic key
+        dialogue_basic_key = dKeyGenerator.generate_key(
+            prefix=Dialogue.prefix,
+            type=DialogueTypes.BASIC,
+            npc=npc_key,
+            slug='first_talk'
+        )
+
+        # first talk Condition
+        first_talk_ok_condition = Condition.objects.create(
+            identifier= f"{dialogue_basic_key}_ok",
+            key= f"condition_{dialogue_basic_key}_ok",
+            use_identifier=True,
+        )
+     
+        # Dialogue button text
+        button_text_loc = Localization.objects.create(
+            identifier = f"{dialogue_basic_key}_button_text",
+            key= f"loc_{dialogue_basic_key}_button_text",
+            english="COMPLETAR button Text de " + dialogue_basic_key,
+            spanish="COMPLETAR button Text de" + dialogue_basic_key,
+        )
+
+        dialogue = Dialogue.objects.create(
+            identifier = 'First Talk',
+            key= dialogue_basic_key,
+            npc = instance,
+            type = DialogueTypes.BASIC,
+            button_text = button_text_loc
+        )
+        
+        # Dialogue Sequence Key
+        dialogue_sequence_basic_key = dSequenceKeyGenerator.generate_key(
+            slug=dialogue_basic_key
+        )
+
+        # Dialogue Sequence
+        dialogue_sequence = DialogueSequence.objects.create(
+            identifier = dialogue_basic_key,
+            key = dialogue_sequence_basic_key,
+        )
+
+        # Dialogue Sequence Item
+        # Dialogue Sequence Item Key
+        sequence_item_key = dSequenceItemKeyGenerator.generate_key(
+            prefix=DialogueSequenceItem.prefix,
+            dialogue_key=dialogue_basic_key,
+            slug="A",
+            dialogue_item_index="1",
+        )
+
+        # Dialogue Sequence Item Text
+        dialogue_seq_item_loc = Localization.objects.create(
+            identifier = f"{sequence_item_key}_text",
+            key= f"loc_{sequence_item_key}_text",
+            english="COMPLETAR sequence item text de " + sequence_item_key,
+            spanish="COMPLETAR sequence item text de" + sequence_item_key,
+        )    
+
+        DialogueSequenceItem.objects.create(
+            identifier = "A",
+            key=sequence_item_key,
+            text = dialogue_seq_item_loc,
+            speaker = False,
+            index = 1,
+            sequence = dialogue_sequence
+        )
+
+        Basic.objects.create(
+            dialogue = dialogue,
+            is_first_talk = True,
+            is_one_shot = False,
+            sequence = dialogue_sequence
+        )
+
+        dialogue.no_appear_conditions.add(first_talk_ok_condition)
+        dialogue.trigger_id_conditions.add(first_talk_ok_condition)
+
+
 
 
 # Se ejecuta cuando Django carga las apps
