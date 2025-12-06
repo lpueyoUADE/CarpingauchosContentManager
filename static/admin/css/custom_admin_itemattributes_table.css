@@ -3,6 +3,7 @@ table#result_list th div.text {
     text-wrap: auto;
     font-size: 8px;
 }
+
 table#result_list tr:nth-child(even) th:nth-child(2) {
     background-color: var(--darkened-bg);
 }

@@ -704,7 +704,7 @@ class QuestAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = Quest.prefix
 
     inlines = [QuestObjectiveInline, ItemRewardInline]
-    list_display = ('identifier', 'key', 'english_name', 'spanish_name',)
+    list_display = ('identifier', 'key', 'money_reward','ability_points_reward','english_name', 'spanish_name',)
 
     ordering = ('key',)
 
@@ -895,6 +895,8 @@ class AttackSequenceAdmin(BaseModelAdmin, AutoKeyMixin):
 @admin.register(Item, site=custom_admin_site)
 class ItemAdmin(BaseModelAdmin, AutoKeyMixin):
     key_prefix = Item.prefix
+    
+    search_fields = ('identifier', 'key',)
     list_display = ('identifier', 'key', 'type', 'rarity_name', 'value', 'english_name', 'spanish_name',
                     'flat_physical_damage', 'flat_magical_damage',
                     'armor_physical_resistance', 'armor_magical_resistance',

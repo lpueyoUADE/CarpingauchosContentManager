@@ -235,6 +235,16 @@ attack_sequences = [
     {'identifier': 'Melee_Kick_08',  'key': 'attack_sequence_melee_kick_08'},
     {'identifier': 'Melee_Kick_09',  'key': 'attack_sequence_melee_kick_09'},
     {'identifier': 'Melee_Kick_10',  'key': 'attack_sequence_melee_kick_10'},
+    {'identifier': 'Knife_Slash_01',  'key': 'attack_sequence_knife_slash_01'},
+    {'identifier': 'Knife_Slash_02',  'key': 'attack_sequence_knife_slash_02'},
+    {'identifier': 'Knife_Slash_03',  'key': 'attack_sequence_knife_slash_03'},
+    {'identifier': 'Knife_Slash_04',  'key': 'attack_sequence_knife_slash_04'},
+    {'identifier': 'Knife_Slash_05',  'key': 'attack_sequence_knife_slash_05'},
+    {'identifier': 'Knife_Slash_06',  'key': 'attack_sequence_knife_slash_06'},
+    {'identifier': 'Knife_Slash_07',  'key': 'attack_sequence_knife_slash_07'},
+    {'identifier': 'Knife_Slash_08',  'key': 'attack_sequence_knife_slash_08'},
+    {'identifier': 'Knife_Slash_09',  'key': 'attack_sequence_knife_slash_09'},
+    {'identifier': 'Knife_Slash_10',  'key': 'attack_sequence_knife_slash_10'},
 ]
 
 def localization_forwards(apps, schema_editor):

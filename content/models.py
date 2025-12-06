@@ -902,6 +902,7 @@ class Dialogue(BaseModel):
     no_appear_conditions = models.ManyToManyField(Condition, related_name='dialogues_to_no_appear', blank=True)
     trigger_id_conditions = models.ManyToManyField(Condition, related_name='ids_to_trigger', blank=True)
     trigger_diary_conditions = models.ManyToManyField(Condition, related_name='diaries_to_trigger', blank=True)
+    trigger_quest_next_step_ids = models.ManyToManyField(Condition, related_name='quest_step_ids_to_trigger', blank=True)
 
     owner_reference = models.CharField(max_length=50,null=True, blank=True, help_text="Texto para organizar UI en Unity.", default="Generic")
 
@@ -909,7 +910,6 @@ class Dialogue(BaseModel):
     remove_items = models.ManyToManyField(Item, through=DialogItemsToRemove, related_name='removed_by_dialogues', blank=True)
     give_items = models.ManyToManyField(Item, through=DialogItemsToGive, related_name='given_by_dialogues', blank=True)
 
-    #TODO: Crear Dialogos prompt y end al crear una quest.
     @classmethod
     def process_subtype(cls, subtype, dialogue_element, data):
         data['npc'] = dialogue_element.npc.key
@@ -961,6 +961,7 @@ class Dialogue(BaseModel):
                 "NotAppearConditions": self.get_related_objects(related_name="no_appear_conditions"),
                 "TriggerCompletitionsIDs": self.get_related_objects(related_name="trigger_id_conditions"),
                 "TriggerDiaryEntriesIDs": self.get_related_objects(related_name="trigger_diary_conditions"),
+                "TriggerQuestsNextStepsIDs": self.get_related_objects(related_name="trigger_quest_next_step_ids"),
                 "RequiredItems": self.get_related_objects("dialogitemsrequired_set", "item"),
             },
             "RemoveItems": self.get_related_objects("dialogitemstoremove_set", "item"),
